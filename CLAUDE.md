@@ -1,7 +1,45 @@
 # SlotBook — instructions for AI sessions
 
-**Read `docs/PROJECT-CONTEXT.md` before doing anything else.** It defines what this
-project is for and the rules below in full.
+## START HERE — every session, no exceptions
+
+This project runs across **many separate chat sessions over 7–9 months**. You have
+no memory of previous ones. These files are the continuity:
+
+1. **`docs/STATE.md`** — where the project actually is. **Read this first, always.**
+   It names the next topic, what is decided, what is deliberately still open, and
+   what homework is outstanding.
+2. **`docs/sessions/`** — one log per session, newest number is the last one. Read
+   the most recent for detail on what just happened.
+3. **`docs/adr/`** — the decisions. **If an ADR exists, that question is settled.**
+4. **`docs/learning/CURRICULUM.md`** — the full topic list and session format.
+5. **`docs/PROJECT-CONTEXT.md`** — what the project is for, in full.
+
+Then **confirm the starting point with the developer before teaching anything**:
+
+> "Last session was NNN — <topic>. `STATE.md` says next up is <topic>. Did you get
+> through the homework (<item>)? Shall we start there, or pick up something else?"
+
+**Never re-derive a settled decision.** Reopen an ADR only if the developer asks or
+new evidence contradicts it. Re-litigating costs a session and erodes trust in the
+documentation.
+
+## END OF SESSION — before the conversation ends
+
+Two writes, non-negotiable:
+
+1. **Update `docs/STATE.md`** — current position, new decisions, newly-opened
+   questions, homework set. Keep it short; it is an index, not a record.
+2. **Write `docs/sessions/NNN-<topic-id>-<slug>.md`** from
+   `docs/sessions/TEMPLATE.md`. Include the pressure-test section and the gaps
+   exposed — those are what make the next session useful.
+
+Then commit. If the session is running long, write these **before** you run out of
+room, not after.
+
+---
+
+**Read `docs/PROJECT-CONTEXT.md` for the full picture.** It defines what this
+project is for and the rules below in detail.
 
 ## The learning contract — do not violate this
 
@@ -64,7 +102,9 @@ Generic *requirement shapes* are fine and documented in PROJECT-CONTEXT §2.
 
 | Path | Contents |
 |---|---|
-| `docs/PROJECT-CONTEXT.md` | Single source of truth. Start here |
+| `docs/STATE.md` | **Where we are. Read first, write last** |
+| `docs/sessions/` | One log per session. Newest = most recent |
+| `docs/PROJECT-CONTEXT.md` | What the project is for; the full picture |
 | `docs/learning/CURRICULUM.md` | Session-by-session teaching order; the live plan |
 | `docs/learning/ROADMAP.md` | The developer's original 15-phase plan (reference) |
 | `docs/adr/` | Permanent decisions. **The most valuable artifact here** |
@@ -84,6 +124,5 @@ to fill gaps.**
 
 ## Current state
 
-Default `net10.0` web template with the WeatherForecast endpoint still in place.
-Nothing real built yet. Note: roadmap says .NET 8; installed SDK is 10.0.401 —
-needs a decision.
+See `docs/STATE.md` — it is kept current and this section is not. Do not rely on
+anything written here about progress.
