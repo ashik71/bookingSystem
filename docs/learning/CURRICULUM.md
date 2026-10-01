@@ -197,9 +197,68 @@ The signature technical problem. If this is wrong, the product is worthless.
   Environments, parameterization, drift, what should never be in code.
 - [ ] **F7. CI/CD & deployment safety** — GitHub Actions pipeline, migrations with
   live tenants, zero-downtime deploys, blue/green vs rolling, rollback, feature flags.
-- [ ] **F8. Observability** — OpenTelemetry → Application Insights. Structured
-  logs, correlation IDs, **TenantId on every log line and span**, distributed
-  tracing, the four golden signals, alerts that mean something.
+> **Observability is a first-class track here, built on OpenTelemetry.** OTel is
+> the one piece of this stack that is a *durable, portable* skill — Prometheus,
+> Grafana and App Insights are interchangeable backends behind it. Learn OTel
+> properly and the backends become configuration. This is also the correct senior
+> answer to "how do you avoid vendor lock-in in observability".
+
+- [ ] **F8. OpenTelemetry properly** 📐 — the specification, not just the SDK calls.
+  - The data model: **traces** (spans, parent/child, span kinds, status),
+    **metrics** (instrument types, temporality, aggregation), **logs** and how OTel
+    correlates them to traces. Resource vs attributes vs scope
+  - **Context propagation** — the real core. `Activity`/`ActivityContext` in .NET
+    and how it maps to OTel, W3C `traceparent`/`tracestate`, baggage (and why
+    baggage is dangerous: it crosses trust boundaries)
+  - **Semantic conventions** — why naming matters more than it looks; using the
+    standard attribute names so backends and dashboards work without custom glue
+  - Auto-instrumentation vs manual spans: what the ASP.NET Core / HttpClient /
+    EF Core / messaging instrumentations give you free, and where you must add
+    domain spans by hand (`BookSlot`, `GenerateWeeklySlots`)
+  - **Sampling** — head vs tail, parent-based, rate-limiting; the cost/fidelity
+    trade-off and why you tail-sample errors
+  - **The Collector** — the piece most people skip. Receivers/processors/exporters,
+    running it as agent vs gateway, batching, redaction of PII in a processor,
+    fan-out to several backends, and why the Collector is what actually gives you
+    vendor independence rather than the SDK
+  - Instrumenting a **message hop**: injecting trace context into RabbitMQ/Kafka
+    headers and extracting it in the consumer, so one trace spans API → broker →
+    worker. **This is the thing to be able to demo** — it proves you understand
+    propagation rather than having switched on a package
+  - **TenantId**: on every span and log, as a span attribute and log field — but
+    deliberately **not** as a high-cardinality metric label (see F8b)
+  → ADR on the export strategy, `docs/design/observability.md`
+
+- [ ] **F8a. Export fan-out: one instrumentation, many backends** ☁️📐
+  Same OTel pipeline → Prometheus/Grafana **and** Azure Application Insights (via
+  the Azure Monitor exporter), plus Jaeger or Aspire Dashboard locally for traces.
+  Swap a backend by changing Collector config and nothing else — then write up what
+  each backend is genuinely better at, and what the managed one takes away.
+  Metric types that people confuse: counter vs gauge vs histogram, and why you
+  cannot average a percentile.
+
+- [ ] **F8b. Prometheus & Grafana hands-on** 📐 — the self-hosted half, built for real.
+  - Prometheus: pull model and why it differs from push, scrape config, service
+    discovery, PromQL properly (`rate`, `histogram_quantile`, `by`/`without`),
+    recording rules, retention and why Prometheus is not a long-term store
+  - `prometheus-net` / OTel Prometheus exporter in .NET; `/metrics` endpoint
+  - **The dashboard** — the deliverable. Four golden signals plus domain metrics:
+    · request rate, error rate, latency p50/p95/p99, saturation
+    · **RabbitMQ queue depth and consumer lag** (the one that catches real incidents)
+    · **Kafka consumer-group lag**
+    · bookings/hour, booking failures, double-booking attempts rejected
+    · slot-hold contention, OTP send rate (cost signal)
+  - Alertmanager: alerts that page a human vs alerts that are noise. Symptom-based
+    alerting over cause-based; burn-rate alerts over static thresholds
+  - Grafana: dashboards as code (provisioned JSON, in git), template variables for
+    per-tenant filtering, annotations for deploys
+  → Dashboard JSON committed to the repo + screenshot for the portfolio
+
+- [ ] **F8c. SLOs and operational maturity** 📐 — defining an SLI that reflects user
+  experience, error budgets, and what it means to spend one. "Dashboard with a lot
+  of graphs" is junior; "three SLOs with error budgets and burn-rate alerts" is
+  senior. Then: what you would put in a runbook, and the on-call reality of
+  supporting this alone.
 - [ ] **F9. Cost modeling** — sizing from the capacity model, budget alerts, the
   per-tenant unit economics of each isolation model.
 - [ ] **F10. AWS comparison pass** ☁️ — map every Azure service to its AWS

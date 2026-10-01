@@ -226,7 +226,9 @@ API Gateway / Azure Front Door  (rate limiting, per-tenant throttling)
       ├──► Reviews Service ──► MongoDB (Cosmos DB Mongo API)
       └──► Analytics Consumer ◄── Kafka (Event Hubs Kafka endpoint)
 
-Observability: OpenTelemetry → Azure Application Insights (+ Prometheus/Grafana locally)
+Observability: OpenTelemetry (instrument once)
+               ├──► Prometheus ──► Grafana  (self-hosted; dashboards as code)
+               └──► Azure Application Insights (managed; traces + alerts)
 Hosting:       Azure Container Apps or App Service
 Secrets:       Azure Key Vault + Managed Identity
 CI/CD:         GitHub Actions (or Azure DevOps) → tests, Playwright E2E, scan
@@ -327,6 +329,21 @@ Not an afterthought — the actual output of this project. Each maps to a focus 
       hold — *why all three*, and which one is the actual guard
 - [ ] **Load-test numbers**: "200 concurrent users, 10 slots, zero double bookings,
       N req/sec with Redis vs without" — real measured figures, written down
+
+**Observability**
+- [ ] OpenTelemetry instrumentation exported **two ways** — Prometheus/Grafana and
+      Azure Application Insights — proving the instrument-once principle
+- [ ] **Grafana dashboard, provisioned as code and committed to the repo**:
+      request rate · error rate · latency p50/p95/p99 · saturation ·
+      RabbitMQ queue depth · Kafka consumer lag · bookings per hour ·
+      double-booking attempts rejected · OTP send rate
+- [ ] Distributed trace that survives the API → broker → worker hop
+- [ ] PromQL you can write from memory under questioning
+- [ ] Alert rules that are symptom-based, with a note on what was deliberately
+      *not* alerted on and why
+- [ ] **Three SLOs with error budgets and burn-rate alerts** — this is the senior
+      differentiator over "here are many graphs"
+- [ ] Dashboard screenshot for the portfolio
 
 **Throughout**
 - [ ] `LEARNINGS.md` — 2–3 lines per topic on what was genuinely hard
