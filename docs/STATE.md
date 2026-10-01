@@ -3,8 +3,8 @@
 > **Every session reads this file first and updates it last.** It is the handoff
 > between sessions. Keep it short; detail belongs in the session log and ADRs.
 
-**Last session:** 001 · 2026-10-01
-**Next session:** 002 — Topic **A2: Domain modeling & bounded contexts**
+**Last session:** 002 · 2026-10-01
+**Next session:** 003 — continue/finish **A2: Domain modeling & bounded contexts**
 
 ---
 
@@ -15,7 +15,7 @@
 | **Current block** | A — Foundations you cannot cheaply reverse |
 | **Last topic completed** | A1 — Process, tooling & framing |
 | **Next topic** | **A2 — Domain modeling & bounded contexts** |
-| **Phase of A2** | Not started |
+| **Phase of A2** | In progress — teaching started session 002 |
 | **Code written so far** | None. Default template only |
 | **Blocked on** | Nothing |
 
@@ -32,6 +32,9 @@
 | ADR | Decision | Status |
 |---|---|---|
 | 0001 | OpenSpec for change management; BMAD rejected | Accepted |
+| 0003 | Target .NET 10 (all projects `net10.0`) | Accepted |
+
+*ADR-0002 is reserved for the developer's homework: modular monolith vs microservices.*
 
 ## Decisions deliberately still open
 
@@ -39,7 +42,6 @@ These are *known unknowns* — don't let a session accidentally assume one.
 
 | Question | Blocks | Target |
 |---|---|---|
-| .NET 8 or 10? Installed SDK is 10.0.401; original roadmap said 8 | Nothing yet | A4 or earlier |
 | Bounded context boundaries | Everything downstream | **A2 (next)** |
 | Is Slot inside the Booking aggregate? | The whole concurrency design | A3 |
 | Multi-tenancy isolation model | First schema | A6 |

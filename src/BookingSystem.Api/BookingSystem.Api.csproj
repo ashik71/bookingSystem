@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Booking\Booking.Application\Booking.Application.csproj" />
+    <ProjectReference Include="..\Modules\Booking\Booking.Infrastructure\Booking.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
