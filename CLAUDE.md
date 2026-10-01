@@ -105,8 +105,9 @@ Generic *requirement shapes* are fine and documented in PROJECT-CONTEXT §2.
 | `docs/STATE.md` | **Where we are. Read first, write last** |
 | `docs/sessions/` | One log per session. Newest = most recent |
 | `docs/PROJECT-CONTEXT.md` | What the project is for; the full picture |
-| `docs/learning/CURRICULUM.md` | Session-by-session teaching order; the live plan |
-| `docs/learning/ROADMAP.md` | The developer's original 15-phase plan (reference) |
+| `docs/learning/CURRICULUM.md` | Topic *depth* reference — what to cover per topic |
+| `docs/learning/ROADMAP.md` | **The live sequencing.** Phase order drives the build |
+| `docs/lessons/` | Teaching write-ups, one per topic, named after the topic |
 | `docs/adr/` | Permanent decisions. **The most valuable artifact here** |
 | `docs/design/` | System design docs, domain model, diagrams |
 | `docs/prd/` | Platform requirements (no client material) |
