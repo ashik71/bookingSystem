@@ -10,7 +10,7 @@ hitl: true
 risk: medium
 tracker_id: "5"
 remote: "https://github.com/ashik71/bookingSystem/issues/5"
-tracker_status: backlog
+tracker_status: done
 ---
 
 # Each PR is built and tested for the sides it changes

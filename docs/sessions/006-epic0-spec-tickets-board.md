@@ -70,6 +70,8 @@
 |---|---|---|---|---|
 | #6 | #4 (the health page) | plan + implement + 3 fix rounds, about $1.50 in total | 1. It pinned `xunit.v3` to an old 3.2.2 to stay on VSTest. 2. Tests lived outside `src/backend`. 3. The build broke on a machine with a second NuGet feed (`NU1507`). 4. The README said "Node 24", but Angular 22 needs ≥ 24.15 | 1: **my plan answer** (I told it to stay on VSTest). 2: **the ADR** (the layout was amended). 3 and 4: **spec gaps** (the sandbox is cleaner than a dev machine). The agent followed every instruction, disclosed each deviation, and replied once per thread naming the fixing commit |
 | #8 | #7 (backend style) | plan + implement, 0 fix rounds, about $1.10 | Nothing. The plan **prototyped the config in a throwaway copy** and found two holes in ADR-0007 before any code was written: `this.` couldn't fail the build, and stable StyleCop raises a false SA1516. It also flagged that the ADR didn't list the IDE ids | **ADR gaps**, caught at plan time. Lesson: a plan run that prototypes is worth its cost ($0.85) |
+| #9 | #5 (CI) | plan + implement, 0 fix rounds, about $0.83 | Nothing. The plan added a safeguard the criteria missed: `ci-ok` fails if change detection fails. Otherwise a PR would pass with both sides skipped and nothing tested. CI went green on its own PR, with both sides run | n/a |
+| #10 | #5, criterion 7 | throwaway (opened by Claude for the developer) | n/a. A deliberately failing test turned `ci-ok` red (`required=true`), and the merge was blocked. The frontend was skipped. The PR was closed and its branch deleted | n/a |
 
 ## Rules added to `CLAUDE.md`
 
@@ -107,8 +109,4 @@ None.
 
 ## Next session
 
-**007:**
-1. Run #5 (CI) through the sandbox. First confirm that the bot's classic PAT has the `workflow` scope.
-2. After it merges, make `ci-ok` a required check and run the failing-test proof (criterion 7).
-3. Close Epic 0 (closure check).
-4. Then `bmad-prd`.
+**007:** `bmad-prd`. Epic 0 was delivered in full through the sandbox in this session: 3 stories, 3 PRs, about $3.40 in agent usage.
