@@ -10,7 +10,7 @@ hitl: false
 risk: low
 tracker_id: "4"
 remote: "https://github.com/ashik71/bookingSystem/issues/4"
-tracker_status: backlog
+tracker_status: done
 ---
 
 # The web page shows the API's health
