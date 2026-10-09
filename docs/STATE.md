@@ -3,8 +3,8 @@
 > **Every interactive session reads this file first and updates it last.** It is the
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
-**Last session:** 006 · 2026-10-09
-**Next session:** 007: `bmad-prd` (Epic 0 is complete; close epic #3 if not done in 006)
+**Last session:** 007 · 2026-10-09
+**Next session:** 008: finish `bmad-prd` (developer review → Finalize), then `bmad-ticket` epic breakdown
 
 ---
 
@@ -19,11 +19,11 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 
 | Track | Status |
 |---|---|
-| **BMAD planning** | Brief ✅ · Epic 0 spec + 3 refined stories ✅ (published: epic #3; stories #4, #7 style, #5 CI) · PRD ⬜ · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
+| **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD 🟡 draft in `prd-slotbook/` (FR-1–44, awaiting developer review + Finalize) · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix used on 3 real stories) · models per mode ✅ · CI ✅ · ⬜ `review` mode, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write, classic PAT with `workflow` scope) ✅ · ruleset `protect-main` ✅ (1 approval + required `ci-ok`, bound to GitHub Actions) · CI `ci.yml` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
-| **Code** | Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 awaits the developer's closure confirmation |
-| **Blocked on** | #5 (CI) waits on #4 and on the bot's classic PAT having the `workflow` scope (the developer checks) |
+| **Code** | Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
+| **Blocked on** | Nothing. PRD Finalize waits on the developer's read-through |
 | **Sequencing** | Option C (2026-10-09): build an Epic 0 walking skeleton (Angular + .NET 10 + `/health`, no DB) through the sandbox while the PRD and architecture continue |
 
 ## Decisions made
@@ -44,9 +44,9 @@ Don't let a session assume an answer to any of these.
 
 | Question | Blocks | Target |
 |---|---|---|
-| Reserved-slot timing vs publication; do practitioner bookings count towards limits | Booking rules | PRD |
-| Per-number limits, booking horizon, cancellation cut-off, offline door check | Booking rules | PRD |
-| Bounded contexts; is Slot inside the Booking aggregate? | Concurrency design | Architecture |
+| PRD assumptions A1–A30 (27 open; A19 email fallback, A25 staff sign-in block architecture) | Finalize | PRD Finalize |
+| Data retention period (Q3), uptime expectation (Q5) | Privacy policy, ops | Before launch |
+| Bounded contexts; is Slot inside the Booking aggregate? How is the cross-slot booking limit guarded? | Concurrency design | Architecture |
 | Multi-tenancy isolation model | First schema | Architecture, **before the first table** |
 | Database and ORM | First schema | Architecture |
 | Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
@@ -55,6 +55,9 @@ Don't let a session assume an answer to any of these.
 
 ## Open threads
 
+- **PRD inputs (007):** the developer's prior private plan for the first tenant is
+  summarised generically in `prd-slotbook/input-prior-plan.md`. The originals stay
+  outside the repo. Decisions C1–C10 are in the PRD memlog
 - **Git history is not scrubbed (developer's decision, 2026-10-09).** Early commits
   contain client details and stay in the public history. The firewall rule still
   applies to all **new** content
