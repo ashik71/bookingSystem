@@ -5,7 +5,7 @@ Multi-tenant appointment booking platform: an Angular frontend and a .NET backen
 ## Prerequisites
 
 - .NET 10 SDK (`global.json` pins `10.0.100`, rolling forward to later 10.0 feature bands)
-- Node 24 and npm
+- Node 24.15 or later (Angular 22 requires at least 24.15.0) and npm
 
 ## Run locally
 
