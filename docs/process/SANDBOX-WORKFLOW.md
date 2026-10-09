@@ -29,7 +29,11 @@ Decision record: [ADR-0004](../adr/0004-sandbox-agentic-delivery-with-bmad.md).
 source of truth. A change goes through BMAD (`bmad-correct-course` →
 `bmad-ticket` "publish ticket changes"), never by editing issue text on GitHub. Labels
 are split by owner: BMAD sets `backlog` and closes issues; the `ai:*` labels drive
-the sandbox in between. A GitHub Project gives the visual board over these issues.
+the sandbox in between. A GitHub Project ([SlotBook delivery](https://github.com/users/ashik71/projects/2))
+gives the visual board over these issues. Its Status column is derived from the labels, never
+set by hand: `.github/workflows/board-sync.yml` adds every labelled ticket to the board and
+moves it on each label or state change. It needs a classic PAT with only the `project` scope
+in the repo secret `PROJECT_TOKEN`.
 
 **Stories are vertical slices.** Each one carries its API endpoint, its UI, and its
 tests. For example, "Patient can cancel a booking" means endpoint + screen + tests.

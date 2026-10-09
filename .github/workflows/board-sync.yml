@@ -1,0 +1,84 @@
+# Keeps the "SlotBook delivery" board in step with the issue labels.
+# Labels are the source of truth (the sandbox and BMAD set them); the board's Status is derived.
+# Mapping: docs/process/SANDBOX-WORKFLOW.md -> Labels.
+name: board-sync
+
+on:
+  issues:
+    types: [opened, labeled, unlabeled, closed, reopened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to (re)sync
+        required: true
+
+permissions:
+  issues: read
+
+concurrency:
+  group: board-sync-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: true   # every run reads the issue's current state, so the newest wins
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set Status from labels
+        env:
+          ISSUE: ${{ github.event.issue.number || inputs.issue }}
+          REPO: ${{ github.repository }}
+          READ_TOKEN: ${{ github.token }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_OWNER: ashik71
+          PROJECT_NUMBER: 2
+        run: |
+          set -euo pipefail
+          [[ $ISSUE =~ ^[0-9]+$ ]] || { echo "bad issue number"; exit 1; }
+          [[ -n $PROJECT_TOKEN ]] || { echo "::error::secret PROJECT_TOKEN is not set"; exit 1; }
+
+          issue=$(GH_TOKEN=$READ_TOKEN gh issue view "$ISSUE" --repo "$REPO" --json id,state,labels)
+          node_id=$(jq -r .id <<<"$issue")
+          state=$(jq -r .state <<<"$issue")
+          labels=$(jq -r '.labels[].name' <<<"$issue")
+          has() { grep -qxF "$1" <<<"$labels"; }
+
+          # Only issues a collaborator has labelled belong on the board. Strangers can open
+          # and close issues on this public repo but can't label them.
+          tracked=false
+          for l in epic story backlog ai:queue ai:planning ai:plan-review ai:implementing \
+                   ai:pr-ready ai:changes-requested ai:paused-limit ai:failed; do
+            has "$l" && tracked=true
+          done
+          $tracked || { echo "#$ISSUE is not a tracked ticket; skipping"; exit 0; }
+
+          # If two status labels overlap mid-transition, the most urgent wins; the event that
+          # removes the old label re-runs this and corrects it.
+          if   [[ $state == CLOSED ]];             then status="Done"
+          elif has ai:failed || has ai:paused-limit; then status="Blocked"
+          elif has ai:changes-requested;          then status="Fixing"
+          elif has ai:pr-ready;                   then status="PR review"
+          elif has ai:implementing;               then status="Building"
+          elif has ai:plan-review;                then status="Plan review"
+          elif has ai:planning;                   then status="Planning"
+          elif has ai:queue;                      then status="Queued"
+          else                                         status="Backlog"
+          fi
+
+          export GH_TOKEN=$PROJECT_TOKEN
+          project=$(gh api graphql -f login="$PROJECT_OWNER" -F n="$PROJECT_NUMBER" -f query='
+            query($login: String!, $n: Int!) { user(login: $login) { projectV2(number: $n) {
+              id field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } } } } }')
+          project_id=$(jq -r .data.user.projectV2.id <<<"$project")
+          field_id=$(jq -r .data.user.projectV2.field.id <<<"$project")
+          option_id=$(jq -r --arg s "$status" '.data.user.projectV2.field.options[] | select(.name == $s) | .id' <<<"$project")
+          [[ -n $option_id ]] || { echo "::error::board has no Status option '$status'"; exit 1; }
+
+          # Adding is idempotent: it returns the existing item if the issue is already on the board.
+          item_id=$(gh api graphql -f p="$project_id" -f c="$node_id" -f query='
+            mutation($p: ID!, $c: ID!) { addProjectV2ItemById(input: {projectId: $p, contentId: $c}) { item { id } } }' \
+            --jq .data.addProjectV2ItemById.item.id)
+          gh api graphql -f p="$project_id" -f i="$item_id" -f f="$field_id" -f o="$option_id" -f query='
+            mutation($p: ID!, $i: ID!, $f: ID!, $o: String!) { updateProjectV2ItemFieldValue(input: {
+              projectId: $p, itemId: $i, fieldId: $f, value: {singleSelectOptionId: $o}}) { projectV2Item { id } } }' >/dev/null
+          echo "#$ISSUE -> $status"

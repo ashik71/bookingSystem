@@ -21,7 +21,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 |---|---|
 | **BMAD planning** | Brief ✅ · Epic 0 spec/tickets ⬜ next · PRD ⬜ · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix all tested by hand, 2026-10-09) · models per mode (`sandbox/models.conf`) ✅ · ⬜ `review` mode, CI, worker, dashboard |
-| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + BMAD store labels ✅ · no issues yet · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ created, linked (Status columns still defaults; set up in 006) |
+| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + BMAD store labels ✅ · no issues yet · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
 | **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
 | **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
 | **Sequencing** | Option C (2026-10-09): build an Epic 0 walking skeleton (Angular + .NET 10 + `/health`, no DB) through the sandbox while the PRD and architecture continue |
