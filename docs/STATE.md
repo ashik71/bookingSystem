@@ -20,8 +20,8 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | Track | Status |
 |---|---|
 | **BMAD planning** | Brief ✅ · PRD ⬜ next · UX ⬜ · Architecture ⬜ · Epic specs/tickets ⬜ |
-| **Pipeline** | 🟡 Mac setup: Colima VM ✅ (data on external drive), `gh` ✅ · ⬜ gh login, Keychain secrets, labels, sandbox image, `run-job.sh`, worker, dashboard |
-| **GitHub** | ⬜ No milestones, labels or issues yet; `main` not yet protected |
+| **Pipeline** | 🟡 Host ready: Colima VM ✅ (data on external drive), `gh` login ✅, Keychain secrets ✅ (Claude + bot token) · ⬜ sandbox image, `run-job.sh`, worker, dashboard |
+| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + `story` labels ✅ · no milestones or issues yet |
 | **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
 | **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
 
@@ -53,9 +53,9 @@ Don't let a session assume an answer to any of these.
 
 ## Open threads
 
-- ⚠️ **Client-IP leak in git history.** Earlier commits contain the client's name, a
-  price and a description of the client. The current files are clean. History must
-  be rewritten (`git filter-repo`) before the repo goes public
+- **Git history is not scrubbed (developer's decision, 2026-10-09).** Early commits
+  contain client details and stay in the public history. The firewall rule still
+  applies to all **new** content
 - `docs/AIAgenticGuideline/` holds the developer's original guideline files. They are
   gitignored because they name the client. The clean, current version is
   `docs/process/SANDBOX-WORKFLOW.md`
@@ -66,7 +66,6 @@ Don't let a session assume an answer to any of these.
 
 | Set in | Task | Status |
 |---|---|---|
-| 004 | Pipeline setup steps 3–6 in `SANDBOX-WORKFLOW.md`: `gh auth login`, Keychain secrets (Claude token, repo-scoped PAT), protect `main`, labels | Open |
 | 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
 
 ---

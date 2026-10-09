@@ -179,8 +179,7 @@ merging its own work. The developer's admin bypass lets docs go straight to `mai
 The bot is not on the bypass list. The job script also pushes only the
 `ai/<issue>-*` refspec, as a second guard.
 
-The repo is **public** (GitHub Free only offers rulesets on public repos), so git
-history was scrubbed of client details before it was made public.
+The repo is **public**, because GitHub Free only offers rulesets on public repos.
 
 Check the CLI flags with `claude --help`; names change between versions.
 
