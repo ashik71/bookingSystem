@@ -3,8 +3,8 @@
 > **Every interactive session reads this file first and updates it last.** It is the
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
-**Last session:** 005 · 2026-10-09
-**Next session:** 006: Epic 0 walking skeleton (`bmad-spec` + `bmad-ticket`, publish to GitHub, queue story 1). Then 007: `bmad-prd`
+**Last session:** 006 · 2026-10-09
+**Next session:** 007: review the #4 plan → implement → PR review → merge; then #5 (CI). Then `bmad-prd`
 
 ---
 
@@ -19,11 +19,11 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 
 | Track | Status |
 |---|---|
-| **BMAD planning** | Brief ✅ · Epic 0 spec/tickets ⬜ next · PRD ⬜ · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
+| **BMAD planning** | Brief ✅ · Epic 0 spec + 2 refined stories ✅ (published: epic #3, stories #4, #5) · PRD ⬜ · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix all tested by hand, 2026-10-09) · models per mode (`sandbox/models.conf`) ✅ · ⬜ `review` mode, CI, worker, dashboard |
-| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + BMAD store labels ✅ · no issues yet · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
-| **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
-| **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
+| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
+| **Code** | None yet. Story #4 (the health page, the tracer bullet) is in its first `plan` run |
+| **Blocked on** | #5 (CI) waits on #4 and on the bot's classic PAT having the `workflow` scope (the developer checks) |
 | **Sequencing** | Option C (2026-10-09): build an Epic 0 walking skeleton (Angular + .NET 10 + `/health`, no DB) through the sandbox while the PRD and architecture continue |
 
 ## Decisions made
@@ -68,8 +68,9 @@ Don't let a session assume an answer to any of these.
 | Set in | Task | Status |
 |---|---|---|
 | 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
-| 005 | `gh auth refresh -s project` (for the Project board) | Done |
 | 005 | `colima stop` after each sandbox session | Habit |
+| 006 | Confirm that the bot's classic PAT has the `workflow` scope (blocks #5) | Open |
+| 006 | Review the #4 plan; approve → `ai:implementing` | Open |
 
 ---
 
