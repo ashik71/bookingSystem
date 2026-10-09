@@ -57,6 +57,11 @@ as substance.
   - **Microsoft.VisualStudio.Threading.Analyzers**
 - `stylecop.json`: no file header, no XML header, documentation not required, and `using`
   directives placed outside the namespace.
+- `GenerateDocumentationFile` = true, so StyleCop's SA0001 doesn't fire. Docs are still
+  not required, because CS1591 is off. *(Amended 2026-10-09, from the #7 plan.)*
+- StyleCop.Analyzers is pinned to **1.2.0-beta.556**. The stable 1.1.118 raises a false
+  SA1516 on top-level statements in `Program.cs`, and SX1101 needs 1.2. *(Amended
+  2026-10-09.)*
 
 ### Formatting (`.editorconfig`)
 
@@ -105,6 +110,20 @@ as substance.
 
 **Set to suggestion** (visible in the IDE, but they don't fail the build): CA1002,
 CA1008, CA1024, CA1711, CA1724, CA1848, CA2254, MA0026.
+
+**Added** *(amended 2026-10-09)*: **SX1101** ("don't prefix local calls with `this.`") as a
+warning. With SA1101 off, IDE0003 alone doesn't fail `dotnet build`, so without SX1101 the
+"no `this.`" rule would only be enforced by `dotnet format`.
+
+**Severity of the expression preferences:**
+- Rules stated as absolutes are warnings, which become errors: `var`, predefined types, no
+  `this.`, explicit accessibility, `readonly`, braces, `using` placement, modifier order.
+- The "preferred" rules stay as IDE suggestions and don't fail the build: pattern
+  matching, throw expressions, null propagation, coalescing, initializers, expression
+  bodies. *(Amended 2026-10-09.)*
+
+**Test method names** follow the same naming as everything else: PascalCase, with no
+underscores. CA1707 stays on for test projects too. *(Decided 2026-10-09.)*
 
 **Kept on, unlike the reference:**
 - **CS0108** (a member hides an inherited member without `new`), because silent hiding
