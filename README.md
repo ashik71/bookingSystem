@@ -36,6 +36,8 @@ dotnet test                                  # from the repo root
 cd src/frontend && npm ci && npm test        # runs once and exits
 ```
 
+CI runs these same commands for the side a PR changes; `ci-ok` is the required check on `main`.
+
 ## Layout
 
 | Path | Contents |
