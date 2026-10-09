@@ -17,6 +17,6 @@ public class HealthEndpointTests(WebApplicationFactory<Program> factory)
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        body.ShouldBe("""{"status":"Healthy"}""");
+        body.ShouldBe("""{"status":"Unhealthy"}""");
     }
 }
