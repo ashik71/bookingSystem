@@ -138,15 +138,42 @@ Mac itself.**
 - Never mount the home folder into the container. The repo is cloned fresh inside.
 - No client data, names or credentials ever enter this repo or its test data.
 
-## One-time setup (homework)
+## One-time setup
 
-1. Install `git gh node dotnet jq uv` and OrbStack (or Colima with `--cpu 4 --memory 4`).
-2. Install Claude Code and log in. Create a sandbox token with `claude setup-token`
-   and store it in the macOS Keychain, not in a file.
-3. `gh auth login`; create the repo-scoped fine-grained token; protect `main`.
-4. Create the labels above with `gh label create`.
-5. Build the sandbox image and test `run-job.sh` by hand on one issue before
+**Host:** MacBook Air M1, 8 GB. **Container runtime: Colima.** It's free and MIT
+licensed, so there's no licence question for a product that will be sold. It's
+command-line only, so the worker can start and stop it from scripts.
+
+**All data lives on the external drive**, never the internal disk. `~/.zshrc` sets
+`DEVCACHES` and, under it, `COLIMA_HOME` (the VM disk, holding all Docker images and
+volumes), `SLOTBOOK_RUNS` (run logs and saved sessions), and the NuGet, npm, uv and
+Homebrew caches. Lima's image cache is symlinked there too. If the drive is
+unplugged, the sandbox doesn't run.
+
+1. ✅ Tools: `git gh node dotnet jq uv colima` (Homebrew).
+2. ✅ VM, started on demand rather than at login:
+   ```sh
+   colima start --cpu 4 --memory 4 --disk 40 --arch aarch64 \
+     --vm-type vz --mount-type virtiofs --mount "$SLOTBOOK_RUNS:w"
+   ```
+   Only the runs folder is shared into the VM. Your home folder is not visible
+   inside it. Stop it with `colima stop` when you're done, to free RAM.
+3. ⬜ `gh auth login` (browser).
+4. ⬜ Sandbox secrets, stored in the macOS Keychain and never in a file:
+   - Claude: `claude setup-token`, then
+     `security add-generic-password -a "$USER" -s slotbook-sandbox-claude -w`
+   - GitHub: a fine-grained PAT for this repo only (Contents, Issues, Pull requests:
+     read/write), then
+     `security add-generic-password -a "$USER" -s slotbook-sandbox-github -w`
+5. ⬜ Protect `main`. See the note below.
+6. ⬜ Create the labels above with `gh label create`.
+7. ⬜ Build the sandbox image and test `run-job.sh` by hand on one issue before
    building the worker.
+
+**Note on protecting `main`:** on GitHub Free, branch protection and rulesets work
+only on **public** repos. Until this repo is public (after the history scrub) or on a
+paid plan, `main` is guarded by the job script: it pushes only the `ai/<issue>-*`
+refspec and refuses any other. Agent permissions also deny `git push` to `main`.
 
 Check the CLI flags with `claude --help`; names change between versions.
 
