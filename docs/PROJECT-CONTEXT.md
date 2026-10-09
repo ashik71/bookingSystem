@@ -167,9 +167,9 @@ diagrams and visual comparisons · conversational teaching · exercises and quiz
 
 ## 5. Process & tooling
 
-- **Spec workflow: OpenSpec** (see ADR-0001). Each change is a folder under
-  `openspec/changes/` with `proposal.md`, `design.md`, `tasks.md`. Archived when
-  shipped. Stable capability specs live in `openspec/specs/`.
+- **Delivery: sandbox agentic workflow with BMAD** (see ADR-0004). The developer
+  plans and reviews; the agent writes code. BMAD outputs live in `_bmad-output/`.
+  Whether OpenSpec change folders stay alongside BMAD specs is still open.
 - **Decisions: ADRs** in `docs/adr/NNNN-title.md`. Permanent; outlive any change.
   *Rule of thumb: if it will still be true after this feature ships, it's an ADR.*
   **ADRs are the single most valuable artifact here** — they are the interview prep.
@@ -178,10 +178,8 @@ diagrams and visual comparisons · conversational teaching · exercises and quiz
 - **Learning notes** in `docs/learning/`, including `LEARNINGS.md` (2–3 lines per
   phase on what was genuinely hard — raw material for interview stories).
 
-**BMAD was evaluated and rejected** (ADR-0001). Its engine is AI agents writing the
-code — precisely what is switched off here. Its structured-elicitation idea is
-borrowed: the AI interrogates with specific questions rather than inventing
-requirements to fill gaps.
+BMAD was first rejected because its engine is AI-written code. That reasoning was
+reversed when the developer chose agentic delivery (ADR-0004).
 
 ---
 

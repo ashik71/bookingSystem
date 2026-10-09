@@ -43,7 +43,7 @@ project is for and the rules below in detail.
 
 ## The delivery contract — sandbox agentic workflow (ADR-0004)
 
-**The developer plans; the agent codes.** Settled in ADR-0004 (supersedes ADR-0001).
+**The developer plans; the agent codes.** Settled in ADR-0004.
 Do not re-argue it.
 
 | Who | Owns |

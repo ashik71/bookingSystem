@@ -21,7 +21,7 @@
 | **Blocked on** | Nothing |
 
 > **Pivot (004, developer's call):** the project switched from "developer writes all
-> code" to full sandbox agentic delivery. ADR-0001 is superseded by ADR-0004.
+> code" to full sandbox agentic delivery. ADR-0004 records it; the old ADR-0001 was deleted.
 > The SlotBook product definition and the six focus areas are **unchanged**.
 > Do not re-argue the delivery model at the start of a session.
 
@@ -37,7 +37,6 @@
 
 | ADR | Decision | Status |
 |---|---|---|
-| 0001 | OpenSpec for change management; BMAD rejected | **Superseded by 0004** |
 | 0003 | Target .NET 10 (all projects `net10.0`) | Accepted |
 | 0004 | Sandbox agentic delivery; BMAD for planning; agent codes, developer reviews and merges | Accepted |
 
@@ -63,9 +62,9 @@ get settled in the BMAD architecture step.
 
 ## Open threads / parked items
 
-- ⚠️ **Client-IP leak in git history:** ADR-0001's Context section names the client
-  and a price, and it is already committed. Needs scrubbing from the file *and*
-  history before the repo goes public
+- ⚠️ **Client-IP leak in git history:** the deleted ADR-0001 named the client and a
+  price, and `CLAUDE.md` describes the client's centre. Both are in earlier commits.
+  Git history must be rewritten before the repo goes public
 - `docs/learning/ROADMAP.md` and `CURRICULUM.md` assumed hand-written code; their
   phase order no longer drives the build — BMAD epics do. Still useful as topic-depth
   reference for planning and PR review

@@ -4,7 +4,7 @@
 - **Date:** 2026-10-09
 - **Deciders:** MD Ashik Ashrafe
 - **Hat:** Both
-- **Supersedes:** ADR-0001
+- **Supersedes:** ADR-0001 (deleted from the repo 2026-10-09)
 
 ## Context
 
