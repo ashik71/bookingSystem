@@ -162,18 +162,25 @@ unplugged, the sandbox doesn't run.
 4. ⬜ Sandbox secrets, stored in the macOS Keychain and never in a file:
    - Claude: `claude setup-token`, then
      `security add-generic-password -a "$USER" -s slotbook-sandbox-claude -w`
-   - GitHub: a fine-grained PAT for this repo only (Contents, Issues, Pull requests:
-     read/write), then
+   - GitHub: a classic PAT with only the `public_repo` scope, created on the **bot
+     account** (see below), then
      `security add-generic-password -a "$USER" -s slotbook-sandbox-github -w`
-5. ⬜ Protect `main`. See the note below.
+5. ⬜ Protect `main` with a ruleset: require a PR with 1 approval, block force
+   pushes, restrict deletions. Only the repo admin (the developer) can bypass.
 6. ⬜ Create the labels above with `gh label create`.
 7. ⬜ Build the sandbox image and test `run-job.sh` by hand on one issue before
    building the worker.
 
-**Note on protecting `main`:** on GitHub Free, branch protection and rulesets work
-only on **public** repos. Until this repo is public (after the history scrub) or on a
-paid plan, `main` is guarded by the job script: it pushes only the `ai/<issue>-*`
-refspec and refuses any other. Agent permissions also deny `git push` to `main`.
+**The agent has its own GitHub identity.** The sandbox uses a separate free bot
+account with **Write** access to this repo. That way PRs, plan comments and replies
+to review comments appear as the bot, not as the developer. The developer can
+*approve* the bot's PRs, and the ruleset's single required approval stops the bot
+merging its own work. The developer's admin bypass lets docs go straight to `main`.
+The bot is not on the bypass list. The job script also pushes only the
+`ai/<issue>-*` refspec, as a second guard.
+
+The repo is **public** (GitHub Free only offers rulesets on public repos), so git
+history was scrubbed of client details before it was made public.
 
 Check the CLI flags with `claude --help`; names change between versions.
 

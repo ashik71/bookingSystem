@@ -49,7 +49,6 @@ Don't let a session assume an answer to any of these.
 | Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
 | RabbitMQ vs Kafka split | Messaging epic | Architecture |
 | OpenSpec change folders alongside BMAD specs, or drop OpenSpec | Story workflow | Before the first epic's tickets |
-| Protecting `main`: GitHub Free has no branch protection on private repos. Options: scrub history and go public / paid plan / script-only guard (current) | Pipeline safety | Before the first sandbox run |
 | Where the worker and dashboard live (default: `sandbox/` here, dashboard as its own epic) | Pipeline build | Architecture |
 
 ## Open threads
