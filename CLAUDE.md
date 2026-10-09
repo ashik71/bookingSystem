@@ -41,7 +41,7 @@ anything here about stack and layout.
 | Mode | You do | You finish by |
 |---|---|---|
 | `plan` | Read the story and the code; write a plan: files, approach, tests. More than ~10 files → propose a split instead | Posting the plan as an issue comment |
-| `implement` | Work on branch `ai/<issue>-<slug>`; update `.ai/progress.md` after each step; write tests with the code | `dotnet test` + frontend tests green, push, open a PR with `Closes #<n>` |
+| `implement` | Work on branch `ai/<issue>-<slug>`; update `.ai/<issue>.md` after each step; write tests with the code | `dotnet test` + frontend tests green, push, open a PR with `Closes #<n>` |
 | `fix` | Read **every** unresolved review comment on the PR; fix it or reply with your reasoning | One reply per comment naming the commit that fixed it, or why not; tests green; push to the same branch |
 
 **Hard rules:**
@@ -54,7 +54,7 @@ anything here about stack and layout.
   Propose changes in a PR or issue comment.
 - Every PR states what was tested and how, and anything left undone.
 - On a usage-limit stop: commit `WIP: paused at limit`, push, and leave
-  `.ai/progress.md` accurate.
+  `.ai/<issue>.md` accurate.
 
 **Stack and conventions:** .NET 10 (ADR-0003). Everything else (frontend framework,
 database, ORM, auth, repo layout, error format, test strategy) is decided in the
@@ -122,6 +122,6 @@ If something serves none of these and isn't needed by the product, propose cutti
 | `_bmad-output/initiative-booking-management/` | BMAD planning output: brief, PRD, UX, architecture, epic specs, tickets |
 | `sandbox/` | Sandbox image, job script, prompt templates (to be built) |
 | `src/` | Application code: frontend and backend, written by the agent, merged by PR |
-| `.ai/progress.md` | Per-branch progress file for pause and resume (on `ai/*` branches only) |
+| `.ai/<issue>.md` | Per-story progress log: pause and resume during the build, kept after merge as build history |
 | `docs/learning/LEARNINGS.md` | Developer's notes per epic: what was hard, what the agent got wrong |
 | `docs/archive/` | The old hand-coding curriculum, roadmap and lessons. Reference only |

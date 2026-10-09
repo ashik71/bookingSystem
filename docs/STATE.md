@@ -24,6 +24,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + `story` labels ✅ · no milestones or issues yet |
 | **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
 | **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
+| **Sequencing** | Option C (2026-10-09): build an Epic 0 walking skeleton (Angular + .NET 10 + `/health`, no DB) through the sandbox while the PRD and architecture continue |
 
 ## Decisions made
 
@@ -31,6 +32,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 |---|---|---|
 | 0003 | Target .NET 10 (all projects `net10.0`) | Accepted |
 | 0004 | Sandbox agentic delivery: BMAD planning; agent codes FE + BE; PR comment loop; developer merges | Accepted |
+| 0005 | Angular for the frontend (deciding factor: the developer's review fluency) | Accepted |
 
 *ADR-0002 is reserved for modular monolith vs microservices (architecture step).*
 
@@ -44,7 +46,6 @@ Don't let a session assume an answer to any of these.
 | Per-number limits, booking horizon, cancellation cut-off, offline door check | Booking rules | PRD |
 | Bounded contexts; is Slot inside the Booking aggregate? | Concurrency design | Architecture |
 | Multi-tenancy isolation model | First schema | Architecture, **before the first table** |
-| Frontend framework | First UI story | Architecture |
 | Database and ORM | First schema | Architecture |
 | Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
 | RabbitMQ vs Kafka split | Messaging epic | Architecture |

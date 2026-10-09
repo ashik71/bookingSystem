@@ -77,7 +77,7 @@ Merging the PR (developer only) closes the issue through `Closes #<n>`.
 3. **Plan review (about 10 minutes).** Right files, right approach, tests included?
    Approve or comment.
 4. **Implement run.** The agent works on branch `ai/<issue>-<slug>` and updates
-   `.ai/progress.md` after each step. It runs `dotnet test` and the frontend tests,
+   `.ai/<issue>.md` after each step. It runs `dotnet test` and the frontend tests,
    pushes, and opens a PR with `Closes #<n>`.
 5. **PR review (about 15 minutes).** Read the diff and run the app locally once.
    Leave review comments on specific lines, then set `ai:changes-requested`.
@@ -137,7 +137,7 @@ Mac itself.**
 - **When a usage limit is hit:** the job commits `WIP: paused at limit` and pushes the
   branch. The `session_id` is saved in the run's `.meta.json`, and the worker sets
   `ai:paused-limit`. After the reset, re-run `implement`. The fresh run finds the
-  existing branch and continues from `.ai/progress.md` and `git log`. `claude --resume`
+  existing branch and continues from `.ai/<issue>.md` and `git log`. `claude --resume`
   isn't used, because the session file is lost when the container is removed.
 - Never have more than one half-finished branch. Let a paused story resume before
   starting a new one.

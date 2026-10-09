@@ -14,7 +14,7 @@ You are running headless in the SlotBook sandbox. Mode: `implement`. Story: issu
 
 ## Resuming
 
-If the branch already has commits, check for `.ai/progress.md`. If it exists, an earlier
+If the branch already has commits, check for `.ai/{{ISSUE}}.md`. If it exists, an earlier
 run was stopped. Read that file and `git log --oneline main..HEAD`, then continue from
 where it stopped. Don't start over.
 
@@ -24,7 +24,7 @@ Follow `CLAUDE.md` → *Build runs* → mode `implement`, and follow the approve
 must deviate from it, say so and why in the PR body.
 
 - Work in small, logical commits with conventional commit messages.
-- After each step, update `.ai/progress.md` (what's done, what's next, any decisions) and
+- After each step, update `.ai/{{ISSUE}}.md` (what's done, what's next, any decisions) and
   commit it with that step.
 - Write tests along with the code. Before you finish, run `dotnet test` and the frontend
   tests (where they exist). All of them must pass.
