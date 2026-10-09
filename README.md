@@ -41,6 +41,6 @@ cd src/frontend && npm ci && npm test        # runs once and exits
 | Path | Contents |
 |---|---|
 | `src/backend/` | .NET backend projects |
-| `tests/backend/` | Backend tests (xUnit v3, Shouldly) |
+| `src/backend/tests/` | Backend tests (xUnit v3, Shouldly) |
 | `src/frontend/` | Angular 22 workspace (Vitest, specs next to the code) |
 | `docs/` | Process, ADRs, session logs |

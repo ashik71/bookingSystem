@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../src/backend/SlotBook.Api/SlotBook.Api.csproj" />
+    <ProjectReference Include="../../SlotBook.Api/SlotBook.Api.csproj" />
   </ItemGroup>
 
 </Project>
