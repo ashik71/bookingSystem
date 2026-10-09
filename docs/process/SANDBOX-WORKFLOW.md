@@ -1,0 +1,163 @@
+# Sandbox Agentic Workflow
+
+How SlotBook is built: the developer plans and reviews, and Claude Code writes the
+frontend and backend inside a disposable Docker sandbox. Every change reaches `main`
+through a pull request that the developer has reviewed and merged.
+
+Decision record: [ADR-0004](../adr/0004-sandbox-agentic-delivery-with-bmad.md).
+
+## Roles
+
+| Who | Does | Never does |
+|---|---|---|
+| **Developer** | Plans with BMAD, approves plans, reviews PRs, comments, merges, moves labels | Writes production code (by choice, not by rule) |
+| **Agent in the sandbox** | Plans a story, writes code and tests, opens the PR, replies to review comments and fixes them | Merges, pushes to `main`, edits planning docs, sees secrets beyond its two tokens |
+| **Agent in an interactive session** | Runs BMAD planning skills, pressure-tests decisions, keeps docs current | Invents requirements to fill gaps |
+
+## Work hierarchy
+
+| Level | Produced by | Lives in GitHub as | Size |
+|---|---|---|---|
+| **Initiative** | `bmad` | The repo itself (`initiative-booking-management`) | The product |
+| **Epic** | `bmad-ticket` | **Milestone** | A deliverable capability, weeks of work |
+| **Feature** | `bmad-ticket` / `bmad-spec` | **Label** `feature:<slug>` | A user-facing function spanning a few stories |
+| **Story** | `bmad-ticket` | **Issue** labelled `story` + its feature label + its milestone | One sitting: one PR, about 3–8 files |
+| **Task** | `bmad-ticket` | **Checklist** inside the issue | A step the agent ticks off |
+
+**Stories are vertical slices.** Each one carries its API endpoint, its UI, and its
+tests. For example, "Patient can cancel a booking" means endpoint + screen + tests.
+Separate backend-only and frontend-only stories leave nothing working end to end
+until late.
+
+## The planning chain (interactive, on the Mac)
+
+Run one BMAD skill per session and start a new session for the next skill, so that
+earlier conversation doesn't eat the usage window.
+
+| Step | Skill | Output |
+|---|---|---|
+| 1 | `bmad-product-brief` | Brief + addendum ✅ |
+| 2 | `bmad-prd` (create, then validate) | PRD: testable functional requirements and NFRs |
+| 3 | `bmad-ux` | `DESIGN.md`, `EXPERIENCE.md`: screens, states, layout, RTL |
+| 4 | `bmad-architecture` | Architecture: repo layout, frontend framework, API contract, data, auth, conventions |
+| 5 | `bmad-spec` per epic | A compact spec for that epic |
+| 6 | `bmad-ticket` per epic | Features, stories and tasks in build order |
+| 7 | Script: `gh issue create` | Stories become GitHub Issues |
+
+Plan the next epic only when it is about to start. What the previous epic teaches
+changes the next one.
+
+Outputs live in `_bmad-output/initiative-booking-management/` and are committed, so
+every sandbox run has the full context.
+
+## Labels: the state machine
+
+The worker reacts only to the states marked *worker*. Every other move is the
+developer changing a label, which keeps a human gate at each step.
+
+| Label | Set by | Meaning | Next |
+|---|---|---|---|
+| `ai:queue` | Developer | Build this story next | Worker picks the oldest one |
+| `ai:planning` | Worker | Plan run in progress | → `ai:plan-review` |
+| `ai:plan-review` | Worker | Plan posted as an issue comment | Developer approves → `ai:implementing`, or comments → `ai:planning` |
+| `ai:implementing` | Developer | Plan approved; *worker* runs the code job | → `ai:pr-ready` |
+| `ai:pr-ready` | Worker | PR open, tests green | Developer reviews |
+| `ai:changes-requested` | Developer | Review comments left on the PR; *worker* runs the fix job | → `ai:pr-ready` |
+| `ai:paused-limit` | Worker | Usage limit hit; work saved on the branch | Worker resumes after the reset |
+| `ai:failed` | Worker | Run failed for a non-limit reason | Developer reads the log and re-queues |
+
+Merging the PR (developer only) closes the issue through `Closes #<n>`.
+
+## One story, end to end
+
+1. **Queue.** The developer adds `ai:queue` to one story issue.
+2. **Plan run.** In a fresh container the agent reads the issue, `CLAUDE.md` and the
+   planning docs, then posts a plan comment: files to touch, approach, and tests.
+   If the plan touches more than about 10 files, it says so and proposes a split.
+3. **Plan review (about 10 minutes).** Right files, right approach, tests included?
+   Approve or comment.
+4. **Implement run.** The agent works on branch `ai/<issue>-<slug>` and updates
+   `.ai/progress.md` after each step. It runs `dotnet test` and the frontend tests,
+   pushes, and opens a PR with `Closes #<n>`.
+5. **PR review (about 15 minutes).** Read the diff and run the app locally once.
+   Leave review comments on specific lines, then set `ai:changes-requested`.
+6. **Fix run.** The agent reads every unresolved review comment. It replies to each
+   one, saying either what it changed and in which commit, or why it disagrees.
+   Then it pushes the fixes to the same branch, re-runs the tests and sets
+   `ai:pr-ready`. It never resolves threads; the developer does.
+7. **Repeat 5–6** until satisfied, then **merge**.
+8. **Learn.** If the agent made a mistake that will repeat, add a rule to
+   `CLAUDE.md` → *Lessons from PR review*.
+
+## The sandbox
+
+- **Image** (`sandbox/Dockerfile`): an ARM64 Linux base with the .NET SDK, Node, git,
+  `gh` and Claude Code installed, running as a non-root user.
+- **Job script** (`sandbox/run-job.sh <issue> <plan|implement|fix>`): starts a fresh
+  container with `--memory 3g --cpus 3`, clones the repo, builds the prompt from
+  `sandbox/prompts/<mode>.md`, and runs `claude -p` capped with `--max-turns`. It
+  saves the output to `runs/<issue>-<time>.jsonl`, then removes the container.
+- **Worker:** a background service that polls GitHub every 60 seconds and runs at
+  most one job at a time. It later becomes the backend of the dashboard.
+- **Dashboard** (its own epic, built through this same pipeline): ASP.NET Core +
+  SignalR. Status cards, a board by label, the current run with a live log,
+  controls, run history and a usage view.
+
+Inside the container the agent may act without permission prompts, because the box
+is disposable and holds no secrets beyond two narrow tokens. **Never do that on the
+Mac itself.**
+
+## Usage limits and story sizing
+
+- Size each story to one sitting: one feature area, about 3–8 files, with clear
+  acceptance criteria.
+- Always plan before implementing. A rejected plan costs far less than a rejected
+  implementation.
+- Cap every run with `--max-turns`.
+- **When a usage limit is hit:** commit `WIP: paused at limit`, push the branch, save
+  the `session_id`, and set `ai:paused-limit`. After the reset, resume with
+  `claude -p --resume <id> "Continue from .ai/progress.md"`. If the session can't
+  be resumed, start a fresh run that reads `.ai/progress.md` and `git log`.
+- Never have more than one half-finished branch. Let a paused story resume before
+  starting a new one.
+- Measure for two weeks before deciding whether a bigger plan is worth paying for.
+
+## Daily routine
+
+| When | Time | Do |
+|---|---|---|
+| Morning | 10 min | Review yesterday's PR → comment (`ai:changes-requested`) or merge. Queue the next story |
+| Midday | 10 min | Review the plan → approve or comment |
+| Evening | 15 min | Review the PR and the agent's replies. Note repeat mistakes in `CLAUDE.md` |
+
+## Safety rules (never break these)
+
+- The sandbox gets exactly two secrets: a Claude token and a GitHub fine-grained
+  token scoped to this repo only (Contents, Issues, Pull requests).
+- `main` is protected. Only the developer merges.
+- Never mount the home folder into the container. The repo is cloned fresh inside.
+- No client data, names or credentials ever enter this repo or its test data.
+
+## One-time setup (homework)
+
+1. Install `git gh node dotnet jq uv` and OrbStack (or Colima with `--cpu 4 --memory 4`).
+2. Install Claude Code and log in. Create a sandbox token with `claude setup-token`
+   and store it in the macOS Keychain, not in a file.
+3. `gh auth login`; create the repo-scoped fine-grained token; protect `main`.
+4. Create the labels above with `gh label create`.
+5. Build the sandbox image and test `run-job.sh` by hand on one issue before
+   building the worker.
+
+Check the CLI flags with `claude --help`; names change between versions.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Mac freezes or swaps | VM memory too high, or the IDE open during a run | VM at 4 GB, container at 3 GB, close the IDE |
+| `claude` asks to log in inside the container | Token not passed, or expired | Re-run `claude setup-token` and pass it again |
+| Image fails to build on Apple Silicon | x86 image | Use `--platform linux/arm64` |
+| Run stops halfway | Hit `--max-turns` or the usage limit | Check the log; raise turns slightly or wait for the reset |
+| PR passes tests but the app is wrong | Weak acceptance criteria | Rewrite the criteria as testable checks, then re-queue |
+| Same mistake every run | Missing rule | Add it to `CLAUDE.md` |
+| Agent "fixes" a comment by guessing | Vague review comment | Say what is wrong *and* what correct looks like |

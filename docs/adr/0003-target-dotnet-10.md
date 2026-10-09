@@ -3,7 +3,6 @@
 - **Status:** Accepted
 - **Date:** 2026-10-01
 - **Deciders:** MD Ashik Ashrafe
-- **Hat:** Platform
 
 ## Context
 
@@ -87,9 +86,10 @@ project operates at.
   rather than downgrading the whole solution
 
 **Neutral / follow-up:**
-- Verify target support as each major dependency arrives: the ORM (A7), the
-  messaging clients (Block E), OpenTelemetry and its exporters (F8), and the Azure
-  SDKs (Block F). Check at the point of adoption, not speculatively.
+- Verify target support as each major dependency arrives: the ORM, the messaging
+  clients, OpenTelemetry and its exporters, and the Azure SDKs. Check at the point
+  of adoption (the architecture step or the story that introduces it), not
+  speculatively.
 - Any employer-facing note should mention the version used; it is a non-issue but
   worth stating.
 

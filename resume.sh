@@ -23,5 +23,26 @@ for f in docs/adr/[0-9]*.md; do
 done
 
 echo
+echo "═══ BMAD PLANNING OUTPUT ═══"
+find _bmad-output -mindepth 2 -maxdepth 3 -name '*.md' ! -name '.memlog.md' 2>/dev/null \
+  | while read -r f; do
+      status=$(grep -m1 '^status:' "$f" 2>/dev/null | sed 's/status: *//' || true)
+      printf '  %-80s %s\n' "$f" "${status:-}"
+    done
+
+echo
+echo "═══ PIPELINE (GitHub) ═══"
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  echo "Stories in flight:"
+  gh issue list --state open --search 'label:ai:queue,ai:planning,ai:plan-review,ai:implementing,ai:pr-ready,ai:changes-requested,ai:paused-limit,ai:failed' \
+    --json number,title,labels \
+    --template '{{range .}}  #{{.number}} {{.title}} [{{range .labels}}{{.name}} {{end}}]{{"\n"}}{{end}}' 2>/dev/null || echo "  (none)"
+  echo "Open PRs:"
+  gh pr list --state open --template '{{range .}}  #{{.number}} {{.title}} ({{.headRefName}}){{"\n"}}{{end}}' 2>/dev/null || echo "  (none)"
+else
+  echo "  (gh not installed or not logged in)"
+fi
+
+echo
 echo "═══ RECENT COMMITS ═══"
 git log --oneline -8 2>/dev/null || true

@@ -1,88 +1,80 @@
 # STATE — where the project actually is
 
-> **Every session reads this file first and updates it last.** It is the handoff
-> between sessions. Keep it short; detail belongs in the session log and ADRs.
+> **Every interactive session reads this file first and updates it last.** It is the
+> handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 004 · 2026-10-09
 **Next session:** 005 — `bmad-prd` (create) from the finished brief
 
 ---
 
+## Goal
+
+Build SlotBook (frontend + backend) through a **sandbox agentic ecosystem**. The
+developer plans with BMAD (epic → feature → story → task). Claude Code builds each
+story in a Docker sandbox and opens a PR. The developer comments, the agent replies
+and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`.
+
 ## Current position
 
-| | |
+| Track | Status |
 |---|---|
-| **Delivery model** | **Sandbox agentic workflow (ADR-0004)** — developer plans and reviews, agent writes all code |
-| **Current stage** | **BMAD planning.** Brief ✅ final (`_bmad-output/initiative-booking-management/brief-slotbook/`); PRD next |
-| **Planning chain** | brief → PRD → UX → architecture → per-epic spec + tickets → GitHub Issues |
-| **Code** | **None.** `src/` and the `.sln` were wiped (004) so the pipeline starts from scratch |
-| **BMAD initiative** | `initiative-booking-management` (`_bmad-output/initiative-booking-management/`) |
-| **Sandbox infra** | ⬜ Not started — guideline Phases 0–2 (Mac setup, sandbox image, `ai:*` labels) |
-| **Blocked on** | Nothing |
+| **BMAD planning** | Brief ✅ · PRD ⬜ next · UX ⬜ · Architecture ⬜ · Epic specs/tickets ⬜ |
+| **Pipeline** | ⬜ Not started: Mac setup, sandbox image, `run-job.sh`, labels, worker, dashboard |
+| **GitHub** | ⬜ No milestones, labels or issues yet; `main` not yet protected |
+| **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
+| **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
 
-> **Pivot (004, developer's call):** the project switched from "developer writes all
-> code" to full sandbox agentic delivery. ADR-0004 records it; the old ADR-0001 was deleted.
-> The SlotBook product definition and the six focus areas are **unchanged**.
-> Do not re-argue the delivery model at the start of a session.
-
-## What exists right now
-
-- `docs/` — context, curriculum, roadmap, Phase 1 lessons, ADRs, state tracking
-- `docs/AIAgenticGuideline/` — the sandbox workflow guideline (**untracked; contains a
-  client reference — scrub before committing**)
-- BMAD installed (`_bmad/`, `.claude/skills/bmad-*`), initiative set
-- No code, no solution, no tests, no schema, no sandbox image
-
-## Decisions made (the short list)
+## Decisions made
 
 | ADR | Decision | Status |
 |---|---|---|
 | 0003 | Target .NET 10 (all projects `net10.0`) | Accepted |
-| 0004 | Sandbox agentic delivery; BMAD for planning; agent codes, developer reviews and merges | Accepted |
+| 0004 | Sandbox agentic delivery: BMAD planning; agent codes FE + BE; PR comment loop; developer merges | Accepted |
 
-*ADR-0002 is reserved for modular monolith vs microservices.*
+*ADR-0002 is reserved for modular monolith vs microservices (architecture step).*
 
 ## Decisions deliberately still open
 
-These are *known unknowns* — don't let a session accidentally assume one. Most now
-get settled in the BMAD architecture step.
+Don't let a session assume an answer to any of these.
 
 | Question | Blocks | Target |
 |---|---|---|
-| Bounded context boundaries | Everything downstream | PRD / architecture |
-| Is Slot inside the Booking aggregate? | The whole concurrency design | Architecture |
-| Multi-tenancy isolation model | First schema | Architecture — **before the first table** |
-| EF Core vs Dapper; PostgreSQL vs SQL Server | First schema | Architecture |
-| Frontend framework (thin UI) | First UI story | Architecture |
-| RabbitMQ vs Kafka split | Messaging epic | Architecture |
-| OpenSpec vs BMAD spec/ticket for per-change specs | Story workflow | Before first epic's tickets |
-| Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
-| Reserved-slot timing vs publication; do practitioner bookings count toward limits | Booking rules | PRD |
+| Reserved-slot timing vs publication; do practitioner bookings count towards limits | Booking rules | PRD |
 | Per-number limits, booking horizon, cancellation cut-off, offline door check | Booking rules | PRD |
+| Bounded contexts; is Slot inside the Booking aggregate? | Concurrency design | Architecture |
+| Multi-tenancy isolation model | First schema | Architecture, **before the first table** |
+| Frontend framework | First UI story | Architecture |
+| Database and ORM | First schema | Architecture |
+| Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
+| RabbitMQ vs Kafka split | Messaging epic | Architecture |
+| OpenSpec change folders alongside BMAD specs, or drop OpenSpec | Story workflow | Before the first epic's tickets |
+| Where the worker and dashboard live (default: `sandbox/` here, dashboard as its own epic) | Pipeline build | Architecture |
 
-## Open threads / parked items
+## Open threads
 
-- ⚠️ **Client-IP leak in git history:** the deleted ADR-0001 named the client and a
-  price, and `CLAUDE.md` describes the client's centre. Both are in earlier commits.
-  Git history must be rewritten before the repo goes public
-- `docs/learning/ROADMAP.md` and `CURRICULUM.md` assumed hand-written code; their
-  phase order no longer drives the build — BMAD epics do. Still useful as topic-depth
-  reference for planning and PR review
+- ⚠️ **Client-IP leak in git history.** Earlier commits contain the client's name, a
+  price and a description of the client. The current files are clean. History must
+  be rewritten (`git filter-repo`) before the repo goes public
+- `docs/AIAgenticGuideline/` holds the developer's original guideline files. They are
+  gitignored because they name the client. The clean, current version is
+  `docs/process/SANDBOX-WORKFLOW.md`
+- The old hand-coding curriculum, roadmap and lessons are in `docs/archive/`, for
+  reference only
 
 ## Homework outstanding
 
 | Set in | Task | Status |
 |---|---|---|
-| 004 | Guideline Phase 0: Mac setup, `claude setup-token`, repo-scoped fine-grained PAT, protect `main` | Open |
-| 004 | Scrub the client reference from `docs/AIAgenticGuideline/` before committing it | Open |
+| 004 | Pipeline setup steps 1–4 in `SANDBOX-WORKFLOW.md`: tools, Claude token, repo-scoped PAT, protect `main`, create labels | Open |
+| 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
 
 ---
 
 ## How to resume (for an AI session)
 
-1. Read `CLAUDE.md` — the delivery contract (ADR-0004)
-2. Read this file — where we are
-3. Read the newest `docs/sessions/` log if more context is needed
-4. Check `_bmad-output/initiative-booking-management/` for in-progress BMAD drafts
+1. Read `CLAUDE.md`, then this file
+2. Read the newest `docs/sessions/` log if more context is needed
+3. Check `_bmad-output/initiative-booking-management/` for in-progress BMAD drafts
    and offer to resume them
-5. **Do not re-derive settled decisions.** If an ADR exists, it is decided
+4. **Don't re-derive settled decisions.** If an ADR exists, the question is decided

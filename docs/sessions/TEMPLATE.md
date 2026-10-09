@@ -1,38 +1,42 @@
-# Session NNN — <topic id>: <topic name>
+# Session NNN — <slug>: <what this session was about>
 
-**Date:** YYYY-MM-DD · **Duration:** ~Nh · **Block:** X · **Topic:** NN
+**Date:** YYYY-MM-DD · **Duration:** ~Nh · **Stage:** planning (BMAD skill) | build review | pipeline setup
 
 ## What was covered
 
-Bullet the ground actually covered, not the ground intended. If a topic was only
+The ground actually covered, not the ground intended. If something was only
 half-finished, say which half.
 
 ## Decisions reached
 
 | Decision | Recorded in |
 |---|---|
-| … | ADR-NNNN / none yet |
+| … | ADR-NNNN / BMAD doc / none yet |
 
 ## Pressure-test — where the developer was challenged
 
-What position was argued against, how they defended it, and whether the defence
-held. **This is the most valuable part of the log** — it is the interview rehearsal
-record, and it shows which reasoning is solid versus merely accepted.
+What position was argued against, how the developer defended it, and whether the
+defence held. This shows which reasoning is solid and which was merely accepted.
 
-## Code the developer wrote
+## Artifacts produced
 
-Files touched, and what the implementation actually does. Note anything left
-incomplete or deliberately stubbed.
+BMAD documents created or changed, GitHub issues, milestones or labels created, and
+pipeline pieces built (sandbox image, scripts, worker).
 
-## Review findings
+## PRs reviewed
 
-What the AI flagged in the developer's code and why. Distinguish *wrong* from
-*would do differently*.
+| PR | Story | Iterations | What the agent got wrong | Root cause (story / spec / CLAUDE.md / agent) |
+|---|---|---|---|---|
+| … | … | … | … | … |
+
+## Rules added to `CLAUDE.md`
+
+Lessons from PR review that will stop a repeat mistake.
 
 ## Gaps exposed
 
-What the quiz or discussion revealed the developer does **not** yet know. Be
-specific and blunt — this drives what gets revisited.
+What the developer doesn't yet know, or where specs were too vague for the agent.
+Be specific and blunt.
 
 ## Homework set
 
@@ -44,4 +48,4 @@ Things raised and deliberately deferred, with the reason.
 
 ## Next session
 
-Topic, and anything that must be ready before it starts.
+What comes next, and anything that must be ready before it starts.

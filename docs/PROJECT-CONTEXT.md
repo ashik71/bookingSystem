@@ -1,347 +1,217 @@
 # SlotBook — Project Context
 
-> **Read this first.** Single source of truth for what this project is, why it
-> exists, and the rules of engagement. Any new session (human or AI) starts here.
+> **Read this first.** The single source of truth for what this project is, why it
+> exists, and how it is built. Any new session, human or AI, starts here.
 
-Last updated: 2026-10-01 (Session 1)
+Last updated: 2026-10-09 (Session 004)
 
 ---
 
 ## 1. What this is and why it exists
 
-**SlotBook** — a multi-tenant appointment booking platform, built as a modular
-monolith on .NET, later partially split into services.
+**SlotBook** is a multi-tenant appointment booking platform for clinics: a web
+frontend and a .NET backend, built as a modular monolith and partly split into
+services later.
 
-**This is deliberate skill development for an already-senior engineer.** The
-developer is a senior .NET developer closing specific gaps, not learning to code.
+It has two goals, and both are real:
 
-**The focus list — set by the developer, this drives everything:**
+1. **The product.** A booking system good enough to run a real clinic. The first
+   clinic is a real prospective client, so this is not a toy. See the product
+   brief in `_bmad-output/initiative-booking-management/brief-slotbook/`.
+2. **The ecosystem.** Building that product through a **sandbox agentic workflow**.
+   The developer plans with BMAD (epic → feature → story → task). Claude Code builds
+   each story in a disposable Docker sandbox and opens a pull request. The developer
+   reviews and comments, the agent replies and fixes, and the developer merges.
+   Frontend and backend are both built this way. See ADR-0004 and
+   `docs/process/SANDBOX-WORKFLOW.md`.
 
-1. **Azure** — cloud platform depth (**primary**; AWS as a secondary comparison)
-2. **System design** — designing distributed systems and defending the design
-3. **RabbitMQ & Kafka** — messaging, and knowing which one and why
-4. **Multi-tenancy** — isolation, onboarding, per-tenant everything
-5. **Security** — authn/authz, OWASP, secrets, tenant-boundary enforcement
-6. **Code architecture** — Clean Architecture, DDD, modular monolith
+**The skills it builds**, set by the developer. The architecture should give each a
+genuine job:
 
-Everything else in this project is **scaffolding to exercise those six**. If a task
-does not serve one of them, it is a candidate for cutting.
+1. **Azure**: primary cloud; AWS as a secondary comparison
+2. **System design**: designing distributed systems and defending the design
+3. **RabbitMQ & Kafka**: messaging, and knowing which one and why
+4. **Multi-tenancy**: isolation, onboarding, per-tenant everything
+5. **Security**: authn/authz, OWASP, secrets, tenant-boundary enforcement
+6. **Code architecture**: Clean Architecture, DDD, modular monolith
+7. **Agentic delivery**: running an AI build pipeline safely and getting quality
+   out of it
 
-Estimated **7–9 months at 10–12 hrs/week**.
+**Where the developer's depth comes from now.** Not from typing the code, but from
+writing requirements the agent can't misread, designing the architecture, and
+reviewing PRs hard enough to explain every line of the focus-area code (the
+double-booking guard, tenant isolation, the outbox).
 
-### This changes what "good architecture" means here
+### What "good architecture" means here
 
-Normally you'd challenge RabbitMQ *and* Kafka, or MongoDB for a single module, as
-over-engineering. Here they are **deliberately in scope** — they are on the focus
-list, and the point is to build real fluency with both.
-
-So the design question is never *"do we need Kafka?"* It is:
+RabbitMQ *and* Kafka, or MongoDB for one module, would normally be challenged as
+over-engineering. Here they are **deliberately in scope**, because they are on the
+skills list. So the design question is never *"do we need Kafka?"* but:
 
 > *"Both are in scope. Where does each genuinely belong, and can the developer
-> defend that split against someone who pushes back hard?"*
+> defend that split against hard push-back?"*
 
-At senior level, the valuable skill is **knowing when NOT to use each one**. That is
-more convincing than having used everything everywhere. Every ADR therefore records
-the honest trade-off, including **the scale at which this choice would be wrong** —
-that sentence is the senior signal.
+Every ADR records the honest trade-off, including **the scale at which the choice
+would be wrong**.
 
-### Scope deliberately trimmed from the original roadmap
+### Hard constraint: zero running cost before a sale
 
-The developer's original 15-phase roadmap was built around a specific job spec
-(Ding: AWS, NHibernate, Lamar, Angular). The focus list supersedes it:
-
-| Original roadmap item | Decision |
-|---|---|
-| **AWS** (ECS, RDS, S3, CloudWatch) | **Azure becomes primary**; AWS kept as a secondary comparison pass. Deploy for real on Azure, then map every service to its AWS equivalent and deploy one component there. Cross-cloud fluency is a stronger senior signal than single-cloud depth. |
-| **NHibernate** | **Demoted.** Was a job-spec requirement, not a skill goal. EF Core unless an ADR says otherwise. NHibernate remains an optional single-session detour for the mapping/interceptor concepts. |
-| **Lamar** | **Dropped.** Built-in DI unless convention scanning earns its place. |
-| **Angular** | **Minimised.** 6+ years of it already — no learning value. Build the thinnest UI that exercises the backend; spend the hours on the focus list instead. |
-| **Legacy .NET 4.8 migration** (Phase 15) | **Dropped.** No value against the focus list. |
-| **MongoDB** | **Kept but deprioritised.** Already strong (6+ years). Useful only as a polyglot-persistence and read-model exercise. |
-| **Clean Architecture / DDD** | **Promoted to first-class.** Barely present in the original roadmap; now a core focus area. |
-| **System design** | **Promoted to first-class.** Was an "interview prep" afterthought; now a recurring deliverable — every major topic produces a design document and diagram. |
-| **Security** | **Promoted to first-class.** Was scattered 🆕⭐ items; now its own phase plus a standing requirement in every change. |
+Until the product is sold, nothing may cost money to run. Hosting, database, SMS
+and email all stay within free tiers. Anything paid needs a free alternative.
+This is itself a design input (see the brief).
 
 ---
 
 ## 2. Separation from client work — IMPORTANT
 
-The developer has a **separate, real, paying client**: an appointment system for a
-spiritual-treatment center in Bangladesh (~478 hrs, 5–6 months, billed hourly).
-
-**These are two different projects and this repo must stay clean of the client's
-intellectual property.** This repo may become public as a portfolio piece.
+The developer has a **separate, real, paying client**. **This repo must stay clean
+of that client's intellectual property.** It may become public as a portfolio piece.
 
 **Rules:**
-- ❌ No client name, branding, logos, colour palette, or screenshots in this repo
-- ❌ No client code, pricing, cost breakdowns, margins, or negotiation strategy
-- ❌ No client domain specifics (religious content, scholar approvals, local payment
-  vendor contracts)
-- ✅ Generic domain language only: *tenant, practitioner, slot, booking, patient/client*
-- ✅ Patterns learned here may inform the client build — **ideas travel, artifacts
-  do not**
+- ❌ No client name, branding, logos, colour palette or screenshots
+- ❌ No client code, pricing, cost breakdowns, margins or negotiation strategy
+- ❌ No client domain specifics: religious or treatment content, local vendor contracts
+- ✅ Generic domain language only: *tenant, clinic, practitioner, patient, slot, booking*
+- ✅ Patterns may inform both projects. **Ideas travel, artifacts do not.**
 
-Client-specific documents (PRD, pricing, negotiation floor, contract terms) live
-**outside this repo**, in the developer's private client folder.
+Client-specific documents live **outside this repo**, in the developer's private
+client folder. The first real clinic is configured privately, never in source.
 
-### What legitimately crosses over
-
-Generic *requirements shapes* the client work revealed, which make this project
-more realistic than a tutorial — safe to keep because they are not client-specific:
+### Generic requirement shapes (safe to use)
 
 | Pattern | Why it is interesting |
 |---|---|
-| Weekly publication cycle | Slots for the next week publish on a fixed weekday; booking stays open all week. More interesting than "book any future date". |
-| Verifiable booking tickets | QR + verification code so a booking can be proven genuine at the door. Anti-fraud by verification rather than by payment. |
-| Phone/OTP as primary identity | Not email. Changes the whole auth design; SMS costs money, so OTP sending must be smart. |
-| Free booking → abuse risk | No payment means nothing stops one person taking every slot. Needs per-identity limits and no-show tracking. Good concurrency + fairness problem. |
-| Bangla/English/Arabic + RTL | Real localization pressure, including right-to-left layout. |
-| Payment as a later seam | Booking state machine designed with a payment state that is unused at first. Teaches designing for optional future capability. |
+| Weekly publication cycle | Next week's slots publish on a fixed weekday; booking stays open all week |
+| Reserved slots | Practitioners hold slots back for patients who missed theirs, then release the unused ones |
+| Verifiable booking tickets | QR + verification code, so a booking can be proven genuine at the door |
+| Phone/OTP as primary identity | Not email. Changes the whole auth design; SMS costs money, so OTP must be careful |
+| Free booking means abuse risk | No payment, so nothing stops hoarding. Needs per-identity limits: a concurrency and fairness problem |
+| Bangla/English/Arabic + RTL | Real localization pressure, including right-to-left layout |
+| Payment as a later seam | Booking states leave room for a payment step that v1 doesn't use |
 
 ---
 
 ## 3. Who is building it
 
-Solo developer, **MD Ashik Ashrafe**.
+Solo developer, **MD Ashik Ashrafe**, acting as **product owner, architect and
+reviewer**. The agent writes the code.
 
 | Skill | Level |
 |---|---|
-| .NET / C# | 6+ years — senior. Assume fluency. |
-| Angular | 6+ years — strong. **No learning value; keep the UI thin.** |
-| MongoDB | 6+ years — strong |
-| SQL | 2 years — **weak spot.** Indexes, isolation levels, locking, query plans need real work. Directly blocks the concurrency topics. |
-| **Azure** | 🎯 Focus area (primary cloud) |
-| AWS | Secondary — comparison + one real deployment |
-| **System design** | 🎯 Focus area |
-| **RabbitMQ / Kafka** | 🎯 Focus area — new |
-| **Multi-tenancy** | 🎯 Focus area — new |
-| **Security** | 🎯 Focus area |
-| **Clean Architecture / DDD** | 🎯 Focus area |
-| Redis | New — supporting |
-| Docker / Kubernetes | Limited — supporting |
-| Flutter, app store publishing | Zero (client work, not this repo) |
+| .NET / C# | 6+ years, senior. Assume fluency |
+| Angular | 6+ years, strong. Can review frontend PRs in depth |
+| MongoDB | 6+ years, strong |
+| SQL | 2 years, **the weak spot**: indexes, isolation levels, locking, query plans. Matters for reviewing the concurrency code |
+| Azure · System design · Messaging · Multi-tenancy · Security · Clean Arch/DDD · Agentic delivery | 🎯 Focus areas |
+| Redis · Docker/Kubernetes | Supporting |
 
-**The developer is already a senior .NET developer.** This is not a juniors-to-mid
-journey. Teaching should assume: C#, async, LINQ, DI, REST, ORMs, and general web
-app construction are known. Do not explain them.
-
-**The actual gaps, in the developer's own words:** Azure · system design ·
-RabbitMQ · Kafka · multi-tenancy · security · code architecture (Clean Arch, DDD).
-
-Teaching style that follows from this:
-- Skip fundamentals. Start at the design-decision level.
-- Lead with trade-offs, failure modes, and operational reality — not syntax.
-- Push back. A senior engineer needs their reasoning stress-tested, not validated.
-- "Why is this wrong at 100× the scale?" is the standing question.
+**Working style for AI sessions:** skip fundamentals and start at the decision level.
+Lead with trade-offs and failure modes. Push back on design and requirements, then
+record the decision and move on. Interrogate instead of inventing requirements.
 
 ---
 
-## 4. Learning contract (IMPORTANT for AI sessions)
+## 4. How it is built
 
-**The developer writes all production code. The AI does not.**
+Full detail: `docs/process/SANDBOX-WORKFLOW.md`. In short:
 
-The AI's role is teacher, architect and reviewer:
-- Explain concepts; compare options with honest trade-offs; recommend and justify
-- Co-design system diagrams, data models, business flows
-- Write and review documentation (PRD, ADR, OpenSpec changes, design docs)
-- Review the developer's code and explain what is wrong and *why*
-- Set exercises and quiz the developer to find the gaps between "read" and "knows"
-- **Interview-drill**: challenge decisions the way a skeptical interviewer would
+| Stage | Where | Who |
+|---|---|---|
+| BMAD planning: brief → PRD → UX → architecture → epic specs → tickets | Interactive Claude Code session on the Mac | Developer answers; agent facilitates |
+| Stories → GitHub Issues (Epic = Milestone, Feature = label, Story = Issue, Task = checklist) | Script | Developer |
+| Plan run → plan review → implement run → PR | Docker sandbox, driven by `ai:*` labels | Agent builds; developer gates every step |
+| PR review → agent replies and fixes → merge | GitHub | Developer comments and merges; agent fixes |
+| Epic retrospective; lessons into `CLAUDE.md` | Interactive | Developer |
 
-The AI must **not** write implementation code into `src/`, even when asked to "just
-show an example" of the thing currently being built. Illustrative snippets in docs
-or chat that teach a pattern are fine. Finished features are not.
-
-If the developer asks the AI to write production code, the AI should remind them of
-this contract once and offer to teach the topic instead. Explicit, deliberate
-override is the developer's call.
-
-**Session shape:** one topic per session, taught deeply.
-Theory → options → trade-offs → design → ADR → developer implements → review.
-Each topic gets a note in `docs/learning/`.
-
-**Delivery formats:** markdown in repo (durable record) · published Artifacts for
-diagrams and visual comparisons · conversational teaching · exercises and quizzes.
+**Decisions:** ADRs in `docs/adr/`, permanent. **Planning artifacts:** BMAD output in
+`_bmad-output/initiative-booking-management/`, committed so every sandbox run reads it.
+Whether OpenSpec change folders are still used alongside BMAD specs is an open question.
 
 ---
 
-## 5. Process & tooling
+## 5. Target architecture (aspirational — the BMAD architecture step decides)
 
-- **Delivery: sandbox agentic workflow with BMAD** (see ADR-0004). The developer
-  plans and reviews; the agent writes code. BMAD outputs live in `_bmad-output/`.
-  Whether OpenSpec change folders stay alongside BMAD specs is still open.
-- **Decisions: ADRs** in `docs/adr/NNNN-title.md`. Permanent; outlive any change.
-  *Rule of thumb: if it will still be true after this feature ships, it's an ADR.*
-  **ADRs are the single most valuable artifact here** — they are the interview prep.
-- **PRD** in `docs/prd/` — platform requirements only, no client material.
-- **System design** in `docs/design/`.
-- **Learning notes** in `docs/learning/`, including `LEARNINGS.md` (2–3 lines per
-  phase on what was genuinely hard — raw material for interview stories).
+A modular monolith first, split selectively later: a single API host plus a worker
+host. Modules are isolated as Domain / Application / Infrastructure / Contracts,
+talk to each other only through `Contracts`, and the boundaries are enforced by
+architecture tests.
 
-BMAD was first rejected because its engine is AI-written code. That reasoning was
-reversed when the developer chose agentic delivery (ADR-0004).
-
----
-
-## 6. Current state of the code
-
-- `src/BookingSystem.Api/` — default web template, still has the WeatherForecast
-  endpoint. Nothing real yet.
-- `src/cases/` — empty.
-- Two commits. Clean slate.
-- **.NET SDK 10.0.401 installed**; the project targets `net10.0`.
-  ⚠️ The roadmap says .NET 8 (the job spec's version). Needs a decision — see ADR-0002.
-- No Angular project yet. No docker-compose yet. No tests yet.
-
----
-
-## 7. Target architecture (aspirational)
-
-Modular monolith first, selectively split later. Single API host plus a worker host.
-Modules isolated as Domain / Application / Infrastructure / Contracts, communicating
-only through `Contracts`, enforced by NetArchTest.
-
-**Planned modules:** Tenants, Users, Practitioners, Scheduling, Bookings, Payments,
-Reviews, Notifications.
-
-**Planned building blocks:** MultiTenancy, Messaging, Caching, Outbox, Persistence.
-
-End state after Phase 13:
+**Candidate modules:** Tenants, Users, Practitioners, Scheduling, Bookings,
+Notifications (Payments and Reviews later).
 
 ```
-Angular SPA — English / বাংলা / العربية (RTL)        [thin: no learning value]
+Web frontend — English / বাংলা / العربية (RTL)   [framework: architecture step]
       │
       ▼
-API Gateway / Azure Front Door  (rate limiting, per-tenant throttling)
+Azure Front Door / gateway (rate limiting, per-tenant throttling)
       │
       ├──► Booking Monolith — modular, Clean Arch + DDD
-      │      Tenants · Users · Practitioners · Scheduling · Bookings · Payments
-      │        ├── Azure SQL or Azure Database for PostgreSQL
-      │        ├── Redis (Azure Cache) — slot holds + read caching
+      │      Tenants · Users · Practitioners · Scheduling · Bookings
+      │        ├── Azure SQL or PostgreSQL
+      │        ├── Redis — slot holds + read caching
       │        └── Outbox ──► RabbitMQ (commands) / Kafka (event stream)
       │
-      ├──► Notification Service  ◄── RabbitMQ      [first extraction]
-      ├──► Reviews Service ──► MongoDB (Cosmos DB Mongo API)
-      └──► Analytics Consumer ◄── Kafka (Event Hubs Kafka endpoint)
+      ├──► Notification Service ◄── RabbitMQ      [first extraction]
+      └──► Analytics Consumer  ◄── Kafka
 
-Observability: OpenTelemetry (instrument once)
-               ├──► Prometheus ──► Grafana  (self-hosted; dashboards as code)
-               └──► Azure Application Insights (managed; traces + alerts)
-Hosting:       Azure Container Apps or App Service
+Observability: OpenTelemetry → Prometheus/Grafana + Azure Application Insights
+Hosting:       Azure Container Apps or App Service (within free tiers before a sale)
 Secrets:       Azure Key Vault + Managed Identity
-CI/CD:         GitHub Actions (or Azure DevOps) → tests, Playwright E2E, scan
+CI/CD:         GitHub Actions: build, tests, E2E, scan on every PR
 ```
 
-**Azure-vs-self-hosted is a deliberate teaching tension.** Run RabbitMQ, Kafka,
-Redis and Mongo in Docker locally to learn the *protocols and failure modes*; then
-map each to its managed Azure equivalent (Service Bus, Event Hubs, Azure Cache,
-Cosmos) and write up what the managed service takes away and what it costs. That
-comparison is a strong system-design interview answer in itself.
+**Multi-tenancy:** one tenant in v1, but data is tenant-aware from the first table.
+Retrofitting `TenantId` later is expensive, so the isolation model has to be decided
+in the architecture step, before any schema exists.
 
-Every technology gets an ADR recording the honest trade-off **and the scale at
-which the choice would be wrong** — never a justification pretending it was
-necessary.
-
-### Known sequencing problem — resolve early
-
-The original roadmap puts **multi-tenancy at Phase 14, last**. `TenantId` touches
-every table, every cache key, every message header, and every blob path.
-Retrofitting it is a large, error-prone migration across the whole codebase.
-
-Given multi-tenancy is a **named focus area**, deferring it to last is wrong here:
-it would be rushed at the end, after the interesting design space has already been
-closed off by decisions made without it in mind.
-
-**Recommendation: design multi-tenancy in from the start** (Phase 1–2), which is
-also what you would do professionally on a SaaS product. The "retrofit pain" lesson
-can be had far more cheaply by writing up *why* retrofitting is expensive.
-
-Needs an explicit ADR before any schema exists.
+**Self-hosted vs managed** is a deliberate tension. Run RabbitMQ, Kafka, Redis and
+Mongo in Docker locally to learn the protocols and failure modes. Then map each to
+its managed Azure equivalent and write up what it takes away and what it costs.
 
 ---
 
-## 8. Roadmap
+## 6. Deliverables to accumulate
 
-Full phase list with resources: `docs/learning/ROADMAP.md` (the developer's own
-15-phase plan, preserved).
+These are the portfolio. Each maps to a focus area.
 
-Session-by-session teaching order: `docs/learning/CURRICULUM.md`, which maps onto
-the roadmap phases but front-loads the decisions that are expensive to reverse.
+**Product**
+- [ ] v1 running for one clinic: publish, reserve, book, ticket, door check
+- [ ] Demo in all three languages, including RTL
 
-**Milestones:**
-- Phase 5 — working booking MVP
-- Phase 10 — portfolio-ready, presentable to employers
-- Phase 14 — multi-tenancy complete
-
----
-
-## 9. Deliverables to accumulate
-
-Not an afterthought — the actual output of this project. Each maps to a focus area.
+**Agentic delivery**
+- [ ] Sandbox image + job script + worker; the label state machine working
+- [ ] Dashboard (built through the pipeline itself)
+- [ ] Measured throughput: stories per day, PR iterations per story, limit hits
+- [ ] `CLAUDE.md` lessons log showing the pipeline improving over time
 
 **System design**
 - [ ] Architecture diagram + README a stranger can follow
-- [ ] A written design doc per major topic, with the alternatives rejected
-- [ ] Capacity model: traffic assumptions → component sizing → bottleneck analysis
-- [ ] The scale-up story: what breaks first at 10×, at 100×, and what you'd change
+- [ ] Capacity model and the scale-up story: what breaks first at 10×, at 100×
 
 **Code architecture (Clean Arch / DDD)**
-- [ ] Context map with bounded contexts and their relationships
-- [ ] Aggregate design write-up: boundaries, invariants, why Booking and Slot are
-      (or are not) one aggregate — the crux of the concurrency problem
-- [ ] NetArchTest suite making boundary violations fail the build
-- [ ] Honest note on where pure Clean Architecture was *not* worth it
+- [ ] Context map; aggregate design (are Booking and Slot one aggregate, and why)
+- [ ] Architecture tests that make boundary violations fail the build
 
 **Multi-tenancy**
-- [ ] Isolation-model ADR with the cost/isolation/migration trade-off
-- [ ] Tests proving tenant A cannot read, write or book tenant B's data
-- [ ] Per-tenant rate limiting so one tenant cannot degrade others
-- [ ] Tenant onboarding walkthrough: zero to serving traffic
+- [ ] Isolation-model ADR; tests proving tenant A can't touch tenant B
+- [ ] Per-tenant rate limiting
 
 **Messaging**
-- [ ] **RabbitMQ vs Kafka**: when each is right — expect hard push-back
-- [ ] Outbox implementation + why dual-write is a correctness bug
-- [ ] Idempotent consumer + what happens on redelivery
-- [ ] Poison-message handling: retries, backoff, dead-letter, and the human recovery path
+- [ ] RabbitMQ vs Kafka split, defended
+- [ ] Outbox, idempotent consumers, poison-message handling
 
 **Security**
-- [ ] Threat model for the booking domain
-- [ ] OWASP pass with findings and fixes
-- [ ] Secrets: Key Vault + Managed Identity, nothing in config or git
-- [ ] Verifiable-ticket design: what actually stops a forged booking
-- [ ] Authorization tests: IDOR attempts across users *and* across tenants
+- [ ] Threat model; OWASP pass; Key Vault + Managed Identity
+- [ ] Ticket forgery model; IDOR tests across users and tenants
 
-**Cloud — Azure primary, AWS secondary**
-- [ ] Deployed, publicly reachable environment on Azure
-- [ ] Infrastructure as code (Bicep for Azure; Terraform if you want it portable)
-- [ ] Managed-vs-self-hosted comparison for each piece of infrastructure
-- [ ] Cost model with budget alerts
-- [ ] **Azure↔AWS service mapping table** with the real differences, not just
-      renamed boxes (Service Bus vs SQS/SNS, Event Hubs vs Kinesis/MSK, Container
-      Apps vs ECS/Fargate, Key Vault vs Secrets Manager, Entra managed identity vs
-      IAM roles) — plus where the models genuinely diverge
-- [ ] One component actually deployed on AWS, so the comparison is earned not read
+**Cloud**
+- [ ] Deployed on Azure with infrastructure as code (Bicep), within free tiers
+- [ ] Azure↔AWS mapping table, with one component actually deployed on AWS
 
 **Concurrency (the signature problem)**
-- [ ] **Double-booking prevention**: optimistic version + unique constraint + Redis
-      hold — *why all three*, and which one is the actual guard
-- [ ] **Load-test numbers**: "200 concurrent users, 10 slots, zero double bookings,
-      N req/sec with Redis vs without" — real measured figures, written down
+- [ ] Double-booking prevention, with measured load-test numbers
+      (200 concurrent users, 10 slots, exactly 10 bookings)
 
 **Observability**
-- [ ] OpenTelemetry instrumentation exported **two ways** — Prometheus/Grafana and
-      Azure Application Insights — proving the instrument-once principle
-- [ ] **Grafana dashboard, provisioned as code and committed to the repo**:
-      request rate · error rate · latency p50/p95/p99 · saturation ·
-      RabbitMQ queue depth · Kafka consumer lag · bookings per hour ·
-      double-booking attempts rejected · OTP send rate
-- [ ] Distributed trace that survives the API → broker → worker hop
-- [ ] PromQL you can write from memory under questioning
-- [ ] Alert rules that are symptom-based, with a note on what was deliberately
-      *not* alerted on and why
-- [ ] **Three SLOs with error budgets and burn-rate alerts** — this is the senior
-      differentiator over "here are many graphs"
-- [ ] Dashboard screenshot for the portfolio
-
-**Throughout**
-- [ ] `LEARNINGS.md` — 2–3 lines per topic on what was genuinely hard
+- [ ] OpenTelemetry exported two ways; a Grafana dashboard as code
+- [ ] Three SLOs with error budgets and burn-rate alerts

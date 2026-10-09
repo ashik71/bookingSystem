@@ -3,7 +3,6 @@
 - **Status:** Proposed | Accepted | Superseded by ADR-NNNN | Rejected
 - **Date:** YYYY-MM-DD
 - **Deciders:** <who>
-- **Hat:** Platform | Ruqaiya delivery | Both
 
 ## Context
 

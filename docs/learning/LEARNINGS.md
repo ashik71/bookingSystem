@@ -1,16 +1,19 @@
 # Learnings
 
-Two or three lines per topic on **what was genuinely hard** — written by the
-developer, in their own words, immediately after the topic.
+Two or three lines per epic on **what was genuinely hard**, written by the
+developer in their own words right after the epic's retrospective.
 
-Not a summary of what was covered (the session log does that). This is the raw
-material for interview stories: the moment of confusion, what resolved it, what you
-believed beforehand that turned out to be wrong.
+Not a summary. That's the session log and the `bmad-retrospective` output. Capture:
 
-The honest entries are the valuable ones. "Straightforward" is a legitimate entry.
+- What the agent got wrong, and what in the story or spec let it go wrong
+- Which review comment taught *you* something about the focus area
+- What you believed beforehand that turned out to be wrong
+
+This is raw material for interview stories, both about the architecture and about
+running an agentic pipeline. "Straightforward" is a legitimate entry.
 
 ---
 
-## A1 — Process, tooling & framing
+## Planning — product brief (session 004)
 
 *(to be written by the developer)*

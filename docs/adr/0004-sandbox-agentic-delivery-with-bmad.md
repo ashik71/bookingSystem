@@ -3,7 +3,6 @@
 - **Status:** Accepted
 - **Date:** 2026-10-09
 - **Deciders:** MD Ashik Ashrafe
-- **Hat:** Both
 - **Supersedes:** ADR-0001 (deleted from the repo 2026-10-09)
 
 ## Context
@@ -18,12 +17,15 @@ agentic workflow**:
 - Claude Code runs headless (`claude -p`) inside a disposable Docker container
 - GitHub Issues with `ai:*` labels act as the state machine; every transition that
   matters is a human label change
-- One story = one plan run + one implement run = one pull request
-- The developer reviews the plan, reviews the PR, and is the only one who merges;
-  `main` is protected
+- One story = one plan run + one implement run (+ fix runs) = one pull request
+- The developer reviews the plan and comments on the PR; the agent replies to each
+  comment and pushes fixes; the developer is the only one who merges, and `main` is
+  protected
+- Frontend and backend are both built this way, as vertical-slice stories
 
 The six focus areas (Azure, system design, RabbitMQ & Kafka, multi-tenancy,
 security, Clean Architecture/DDD) and the SlotBook product definition are unchanged.
+Agentic delivery is added as a seventh.
 
 ## Options considered
 
@@ -57,8 +59,17 @@ and opens PRs. The developer merges.
 become GitHub Issues → `bmad-build` (interactive, early foundation stories) →
 `bmad-build-auto` (sandbox) → `bmad-retrospective` per epic.
 
+**Work hierarchy:** Epic → Feature → Story → Task, mapped to GitHub as Milestone →
+`feature:<slug>` label → Issue → checklist in the issue. Each story is a vertical
+slice (API + UI + tests) sized to one PR.
+
+**PR review loop:** the developer comments on the PR and sets `ai:changes-requested`.
+The agent's `fix` run answers every unresolved comment, either with the commit that
+fixed it or with its reasoning, then pushes to the same branch and re-runs the tests.
+The developer resolves the threads and merges.
+
 Planning happens in interactive sessions where the developer answers questions;
-the sandbox is for execution only.
+the sandbox is for execution only. Process detail: `docs/process/SANDBOX-WORKFLOW.md`.
 
 ## Consequences
 

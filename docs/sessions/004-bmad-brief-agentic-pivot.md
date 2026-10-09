@@ -90,3 +90,28 @@ might turn into an extra role. Fixed. The other fixes were minor.
 
 `bmad-prd` (create), in a fresh session as the guideline recommends. It reads the
 brief. Have numbers ready for the PRD open questions above.
+
+## Addendum — docs realigned to the agentic goal (same session)
+
+The developer stated the goal precisely: an agentic sandbox ecosystem using BMAD
+(epic → feature → story → task). The sandbox codes and opens PRs, the developer
+comments, the agent replies and fixes, and the developer merges. Frontend and
+backend are both built this way. The developer asked for every doc to be updated
+without further questions.
+
+- ADR-0001 deleted (superseded; it also held client details)
+- New `docs/process/SANDBOX-WORKFLOW.md`: a clean English version of the guideline,
+  with the hierarchy → GitHub mapping, the `ai:*` label table including the new
+  `ai:changes-requested` fix loop, and the sandbox, limits and safety rules
+- `CLAUDE.md` rewritten into two modes: rules for sandbox build runs (plan /
+  implement / fix) and rules for interactive sessions, plus a *Lessons from PR
+  review* section
+- `PROJECT-CONTEXT.md` rewritten: two goals (the product and the ecosystem), a
+  seventh focus area (agentic delivery), the frontend no longer "thin", and client
+  descriptions removed
+- ADR-0004 amended: hierarchy, PR comment loop, FE + BE. "Hat" field (and the
+  template's client name) removed from ADRs
+- Curriculum, roadmap and lessons moved to `docs/archive/`; `LEARNINGS.md` reframed
+  per epic; session template reframed for planning and PR review
+- `resume.sh` now also lists BMAD outputs, stories in flight and open PRs
+- `docs/AIAgenticGuideline/` gitignored (names the client)

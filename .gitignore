@@ -19,3 +19,6 @@ artifacts/
 appsettings.*.local.json
 *.local.json
 .env
+
+# Original workflow drafts — name the client; clean version is docs/process/SANDBOX-WORKFLOW.md
+docs/AIAgenticGuideline/
