@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
 using Shouldly;
+using Xunit;
 
 namespace SlotBook.Api.Tests;
 
@@ -8,7 +8,7 @@ public class HealthEndpointTests(WebApplicationFactory<Program> factory)
     : IClassFixture<WebApplicationFactory<Program>>
 {
     [Fact]
-    public async Task Get_health_without_credentials_returns_200_json_Healthy()
+    public async Task GetHealthWithoutCredentialsReturns200JsonHealthy()
     {
         var client = factory.CreateClient();
 
