@@ -31,8 +31,9 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | ADR | Decision | Status |
 |---|---|---|
 | 0003 | Target .NET 10 (all projects `net10.0`) | Accepted |
-| 0004 | Sandbox agentic delivery: BMAD planning; agent codes FE + BE; PR comment loop; developer merges | Accepted |
+| 0004 | Sandbox agentic delivery: BMAD planning; agent codes FE + BE; PR comment loop; developer merges. OpenSpec dropped (amended 2026-10-09) | Accepted |
 | 0005 | Angular for the frontend (deciding factor: the developer's review fluency) | Accepted |
+| 0006 | Monorepo, deploy-independent `src/backend` + `src/frontend`; xUnit v3 + Shouldly; Angular 22 + Vitest | Accepted |
 
 *ADR-0002 is reserved for modular monolith vs microservices (architecture step).*
 
@@ -49,8 +50,6 @@ Don't let a session assume an answer to any of these.
 | Database and ORM | First schema | Architecture |
 | Does a free SMS quota for local numbers exist? (else email/push OTP) | OTP design | Architecture |
 | RabbitMQ vs Kafka split | Messaging epic | Architecture |
-| OpenSpec change folders alongside BMAD specs, or drop OpenSpec (recommended: drop) | Story workflow | **Session 006, before Epic 0's tickets** |
-| Repo layout (`src/` frontend/backend split), test runners, Angular major | Epic 0 story 1 | Session 006 |
 | Where the worker and dashboard live (default: `sandbox/` here, dashboard as its own epic) | Pipeline build | Architecture |
 
 ## Open threads

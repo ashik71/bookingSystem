@@ -125,7 +125,7 @@ Full detail: `docs/process/SANDBOX-WORKFLOW.md`. In short:
 
 **Decisions:** ADRs in `docs/adr/`, permanent. **Planning artifacts:** BMAD output in
 `_bmad-output/initiative-booking-management/`, committed so every sandbox run reads it.
-Whether OpenSpec change folders are still used alongside BMAD specs is an open question.
+OpenSpec is not used (dropped 2026-10-09, ADR-0004): BMAD owns specs and tickets.
 
 ---
 

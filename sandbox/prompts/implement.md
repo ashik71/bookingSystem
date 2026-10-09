@@ -26,8 +26,9 @@ must deviate from it, say so and why in the PR body.
 - Work in small, logical commits with conventional commit messages.
 - After each step, update `.ai/{{ISSUE}}.md` (what's done, what's next, any decisions) and
   commit it with that step.
-- Write tests along with the code. Before you finish, run `dotnet test` and the frontend
-  tests (where they exist). All of them must pass.
+- Write tests along with the code. Before you finish, run `dotnet test` from the repo
+  root and `npm test` in `src/frontend` (each where its project exists; see ADR-0006).
+  All of them must pass.
 - Leave the working tree clean: everything committed.
 
 ## Output

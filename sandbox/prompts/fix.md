@@ -19,7 +19,8 @@ reasonable fix and say what you interpreted it to mean.
 - Commit the fixes on this branch. One commit may fix several threads. Never rewrite
   history: no amend, no rebase, no reset of pushed commits.
 - Update `.ai/{{ISSUE}}.md` and commit it.
-- Run `dotnet test` and the frontend tests (where they exist). All of them must pass.
+- Run `dotnet test` from the repo root and `npm test` in `src/frontend` (each where its
+  project exists; see ADR-0006). All of them must pass.
 - Leave the working tree clean: everything committed.
 
 ## Output

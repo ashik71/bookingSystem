@@ -103,7 +103,8 @@ the sandbox is for execution only. Process detail: `docs/process/SANDBOX-WORKFLO
 - `CLAUDE.md` is rewritten for the new contract: it is also the instruction file every
   sandbox run reads, so lessons from PR review get added there
 - OpenSpec's role (per-change `proposal/design/tasks`) overlaps with BMAD spec and
-  ticket output; which one owns per-change specs is open
+  ticket output. *Amended 2026-10-09:* OpenSpec is dropped. BMAD owns specs and
+  tickets end to end, and the per-story `.ai/<issue>.md` log covers per-change notes
 - The sandbox gets exactly two secrets: a Claude token and a repo-scoped GitHub
   token. No client data or credentials ever enter the repo or its test data
 
