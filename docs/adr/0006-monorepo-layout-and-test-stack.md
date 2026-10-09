@@ -65,9 +65,11 @@ SlotBook.slnx                 solution (root), so `dotnet test` works from the r
 Directory.Build.props         net10.0, nullable, implicit usings, warnings as errors
 Directory.Packages.props      central package versions
 src/backend/<Project>/        backend projects
+src/backend/tests/<Project>.Tests/   backend tests (amended 2026-10-09)
 src/frontend/                 Angular workspace (specs colocated: *.spec.ts)
-tests/backend/<Project>.Tests/
 ```
+
+*Amended 2026-10-09:* backend tests moved from a root `tests/backend/` into `src/backend/tests/`, so each side lives in one folder. The frontend already keeps its specs inside `src/frontend`. Splitting the backend out later is then one path, and its CI filter is one path too.
 
 **Rules that keep the split cheap:**
 - Nothing under `src/frontend` references anything under `src/backend`, and the reverse

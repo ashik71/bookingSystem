@@ -31,7 +31,7 @@ test blocks the merge.
    **When** CI runs
    **Then** the frontend job builds the app and runs `npm test`, the backend job is skipped, and `ci-ok` passes when the frontend job passes
 2. **A backend-only PR runs only the backend**
-   **Given** a PR that changes files only under `src/backend`, `tests/backend`, or the root .NET build files (the solution file, `Directory.Build.props`, `Directory.Packages.props`)
+   **Given** a PR that changes files only under `src/backend` (its tests included), or the root .NET build files (the solution file, `global.json`, `Directory.Build.props`, `Directory.Packages.props`)
    **When** CI runs
    **Then** the backend job builds the solution and runs `dotnet test` from the repo root, the frontend job is skipped, and `ci-ok` passes when the backend job passes
 3. **Changes to both sides, or to CI itself, run both**

@@ -33,13 +33,13 @@ land on (Option C, 2026-10-09).
   - **success:** From a clean clone, following the README (start the API, then start the frontend) opens a browser page showing the healthy state.
 - **CAP-4**
   - **intent:** Every PR is built and tested automatically for the side or sides it changes.
-  - **success:** A PR touching only `src/frontend` runs only the frontend build and tests, and the reverse holds for `src/backend` and `tests/backend`. A failing test turns the required check red, and the PR can't be merged.
+  - **success:** A PR touching only `src/frontend` runs only the frontend build and tests, and the reverse holds for `src/backend`. A failing test turns the required check red, and the PR can't be merged.
 
 ## Constraints
 
 - **Stack and layout:** follow ADR-0003, ADR-0005 and ADR-0006.
   - .NET 10 and Angular 22.
-  - `src/backend`, `src/frontend` and `tests/backend`, with a root `SlotBook.slnx`.
+  - `src/backend` (backend tests under `src/backend/tests`) and `src/frontend`, with a root `SlotBook.slnx`.
   - xUnit v3 + Shouldly for the backend, and Vitest/jsdom with npm for the frontend.
   - Test commands: `dotnet test` from the root, and `npm test` in `src/frontend`.
 - No database, persistence, auth or tenancy.

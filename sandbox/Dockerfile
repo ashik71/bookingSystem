@@ -41,7 +41,7 @@ RUN apt-get update \
 # inherit agent ownership on first use.
 RUN useradd --create-home --shell /bin/bash --uid 1001 agent \
  && install -d -o agent -g agent /work/agent /work/out \
-      /home/agent/.nuget/packages /home/agent/.npm \
+      /home/agent/.nuget /home/agent/.nuget/packages /home/agent/.npm \
  && install -d -m 0755 /work/context
 
 USER agent

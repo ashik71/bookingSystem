@@ -20,7 +20,7 @@
 | Decision | Recorded in |
 |---|---|
 | Drop OpenSpec. BMAD owns specs and tickets | ADR-0004 (amended) |
-| One repo with folders that deploy independently: `src/backend`, `src/frontend`, `tests/backend`, a root `SlotBook.slnx` and central props. Each side has its own path-filtered CI and deploy. A split later means `git filter-repo` | ADR-0006 |
+| One repo with folders that deploy independently: `src/backend` (tests in `src/backend/tests`, amended later in the session), `src/frontend`, a root `SlotBook.slnx` and central props. Each side has its own path-filtered CI and deploy. A split later means `git filter-repo` | ADR-0006 |
 | Test stack: xUnit v3 + Shouldly. Angular 22 + Vitest/jsdom, npm. Test commands: `dotnet test` (root) and `npm test` in `src/frontend` | ADR-0006, sandbox prompts |
 | Board: 9 Status columns, one per pipeline state. A `board-sync` Action derives Status from the labels; the token is a classic PAT with `project` scope only | `SANDBOX-WORKFLOW.md`, `.github/workflows/board-sync.yml` |
 | No Azure deployment in Epic 0; a later epic owns it | Epic 0 Notes, spec Non-goals |
