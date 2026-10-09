@@ -41,21 +41,34 @@ room, not after.
 **Read `docs/PROJECT-CONTEXT.md` for the full picture.** It defines what this
 project is for and the rules below in detail.
 
-## The learning contract — do not violate this
+## The delivery contract — sandbox agentic workflow (ADR-0004)
 
-This project exists to **teach an already-senior .NET developer** six specific
-skills. The developer writes **all** production code. You do not.
+**The developer plans; the agent codes.** Settled in ADR-0004 (supersedes ADR-0001).
+Do not re-argue it.
 
-**You must not write implementation code into `src/`.** Not as a "quick example",
-not "just to unblock", not even when asked directly. If asked, remind the developer
-of this contract once, offer to teach the topic instead, and let them override
-explicitly if they really mean it.
+| Who | Owns |
+|---|---|
+| **Developer** | Brief, PRD, UX, architecture, specs, stories, plan review, PR review, merging |
+| **Agent (Claude Code)** | All implementation code in `src/`, tests, opening PRs |
 
-**What you do instead:** teach, compare options, pressure-test decisions, co-design,
-review their code and explain *why* something is wrong, set exercises, and quiz them.
+- **Planning sessions** (interactive, on the Mac): run the BMAD planning skills. The
+  developer answers; you interrogate, push back and record. Don't invent requirements
+  to fill gaps.
+- **Build runs** (headless, in the Docker sandbox): one GitHub Issue = one story =
+  one plan run + one implement run = one PR on branch `ai/<issue>-<slug>`.
+- **The agent never merges.** `main` is protected; only the developer merges.
+- The sandbox gets exactly two secrets: a Claude token and a repo-scoped GitHub
+  token. Never mount the home folder; the repo is cloned fresh inside.
+- Keep `.ai/progress.md` updated on the branch after each step so a run paused by a
+  usage limit can resume.
+- Full process: `docs/AIAgenticGuideline/`.
 
-Illustrative snippets in docs or chat that teach a pattern are fine. Finished
-features are not.
+**BMAD flow:** `bmad-product-brief` → `bmad-prd` → `bmad-ux` → `bmad-architecture` →
+per epic `bmad-spec` + `bmad-ticket` → GitHub Issues → `bmad-build` (early
+foundation stories, interactive) → `bmad-build-auto` (sandbox) →
+`bmad-retrospective` per epic. Active BMAD initiative: `initiative-booking-management`.
+
+**All documents are written in English**, even when the developer chats in Bengali.
 
 ## Audience: senior engineer
 
@@ -112,16 +125,17 @@ Generic *requirement shapes* are fine and documented in PROJECT-CONTEXT §2.
 | `docs/design/` | System design docs, domain model, diagrams |
 | `docs/prd/` | Platform requirements (no client material) |
 | `openspec/changes/` | Per-change `proposal.md` / `design.md` / `tasks.md` |
-| `src/` | **Developer's code only** |
+| `_bmad-output/initiative-booking-management/` | BMAD planning outputs (brief, PRD, UX, architecture, specs, tickets) |
+| `src/` | Agent-written code, merged only via reviewed PR |
 
 ADR vs change: *if it will still be true after this feature ships, it's an ADR.*
 
 ## Process
 
-OpenSpec for changes, ADRs for lasting decisions. BMAD was evaluated and rejected
-(ADR-0001) because its engine is AI-written code. Its structured-elicitation idea is
-borrowed: **interrogate with specific questions rather than inventing requirements
-to fill gaps.**
+BMAD for planning and delivery (ADR-0004), ADRs for lasting decisions. Whether
+OpenSpec change folders survive alongside BMAD spec/ticket output is an open
+question. Learn from every PR: when the agent repeats a mistake, add the rule to
+this file.
 
 ## Current state
 

@@ -1,6 +1,6 @@
 # ADR-0001: Use OpenSpec for change management; reject BMAD
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0004 (2026-10-09)
 - **Date:** 2026-10-01
 - **Deciders:** MD Ashik Ashrafe
 - **Hat:** Both
