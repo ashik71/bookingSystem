@@ -18,11 +18,18 @@ Decision record: [ADR-0004](../adr/0004-sandbox-agentic-delivery-with-bmad.md).
 
 | Level | Produced by | Lives in GitHub as | Size |
 |---|---|---|---|
-| **Initiative** | `bmad` | The repo itself (`initiative-booking-management`) | The product |
-| **Epic** | `bmad-ticket` | **Milestone** | A deliverable capability, weeks of work |
-| **Feature** | `bmad-ticket` / `bmad-spec` | **Label** `feature:<slug>` | A user-facing function spanning a few stories |
-| **Story** | `bmad-ticket` | **Issue** labelled `story` + its feature label + its milestone | One sitting: one PR, about 3–8 files |
-| **Task** | `bmad-ticket` | **Checklist** inside the issue | A step the agent ticks off |
+| **Initiative** | `bmad` | **Milestone** (`initiative-booking-management`) | The product |
+| **Epic** | `bmad-ticket` | **Issue** labelled `epic`; its stories are sub-issues | A deliverable capability, weeks of work |
+| **Feature** | `bmad-ticket` / `bmad-spec` | **Label** `feature:<slug>` (house rule; BMAD has no feature level) | A user-facing function spanning a few stories |
+| **Story** | `bmad-ticket` | **Sub-issue** of its epic, labelled `story` + its feature label; dependencies as *blocked-by* | One sitting: one PR, about 3–8 files |
+| **Task** | `bmad-ticket` | **Checklist** inside the story | A step the agent ticks off |
+
+**BMAD publishes the board itself** through `bmad-ticket`'s GitHub store
+(`_bmad/custom/ticketing-store-config.toml`). The ticket tree in `_bmad-output/` is the
+source of truth. A change goes through BMAD (`bmad-correct-course` →
+`bmad-ticket` "publish ticket changes"), never by editing issue text on GitHub. Labels
+are split by owner: BMAD sets `backlog` and closes issues; the `ai:*` labels drive
+the sandbox in between. A GitHub Project gives the visual board over these issues.
 
 **Stories are vertical slices.** Each one carries its API endpoint, its UI, and its
 tests. For example, "Patient can cancel a booking" means endpoint + screen + tests.
@@ -42,7 +49,7 @@ earlier conversation doesn't eat the usage window.
 | 4 | `bmad-architecture` | Architecture: repo layout, frontend framework, API contract, data, auth, conventions |
 | 5 | `bmad-spec` per epic | A compact spec for that epic |
 | 6 | `bmad-ticket` per epic | Features, stories and tasks in build order |
-| 7 | Script: `gh issue create` | Stories become GitHub Issues |
+| 7 | `bmad-ticket` "publish" | Epics and stories become GitHub issues and sub-issues |
 
 Plan the next epic only when it is about to start. What the previous epic teaches
 changes the next one.
@@ -126,6 +133,18 @@ Merging the PR (developer only) closes the issue through `Closes #<n>`.
 Inside the container the agent may act without permission prompts, because the box
 is disposable and holds no secrets beyond two narrow tokens. **Never do that on the
 Mac itself.**
+
+## Models per mode
+
+Set in `sandbox/models.conf`; `SLOTBOOK_MODEL` overrides one run. **Rule: code is
+written by a lower model and reviewed by a higher one.** Plans use the higher model,
+because a planning mistake costs the most downstream.
+
+| Mode | Model |
+|---|---|
+| `plan` | Claude Opus 5.5 |
+| `implement`, `fix` | Claude Sonnet 5.5 |
+| `review` (to be built) | Claude Opus 5.5 |
 
 ## Usage limits and story sizing
 

@@ -118,7 +118,7 @@ Full detail: `docs/process/SANDBOX-WORKFLOW.md`. In short:
 | Stage | Where | Who |
 |---|---|---|
 | BMAD planning: brief → PRD → UX → architecture → epic specs → tickets | Interactive Claude Code session on the Mac | Developer answers; agent facilitates |
-| Stories → GitHub Issues (Epic = Milestone, Feature = label, Story = Issue, Task = checklist) | Script | Developer |
+| Tickets → GitHub (Initiative = Milestone, Epic = issue, Story = sub-issue, Feature = label, Task = checklist) | `bmad-ticket` publish | Developer |
 | Plan run → plan review → implement run → PR | Docker sandbox, driven by `ai:*` labels | Agent builds; developer gates every step |
 | PR review → agent replies and fixes → merge | GitHub | Developer comments and merges; agent fixes |
 | Epic retrospective; lessons into `CLAUDE.md` | Interactive | Developer |

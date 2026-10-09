@@ -59,9 +59,19 @@ and opens PRs. The developer merges.
 become GitHub Issues → `bmad-build` (interactive, early foundation stories) →
 `bmad-build-auto` (sandbox) → `bmad-retrospective` per epic.
 
-**Work hierarchy:** Epic → Feature → Story → Task, mapped to GitHub as Milestone →
-`feature:<slug>` label → Issue → checklist in the issue. Each story is a vertical
-slice (API + UI + tests) sized to one PR.
+**Work hierarchy:** Epic → Feature → Story → Task. Each story is a vertical slice
+(API + UI + tests) sized to one PR. *Amended 2026-10-09:* the GitHub mapping follows
+`bmad-ticket`'s native GitHub store, so BMAD publishes the tickets itself:
+
+- Initiative → Milestone.
+- Epic → an issue labelled `epic`.
+- Story → a sub-issue labelled `story`.
+- Feature → the label `feature:<slug>` (a house rule; BMAD has no feature level).
+- Task → a checklist in the story.
+- Story dependencies → native blocked-by links.
+
+The repo's `_bmad-output/` stays the source of truth; nobody edits ticket content on
+GitHub by hand.
 
 **PR review loop:** the developer comments on the PR and sets `ai:changes-requested`.
 The agent's `fix` run answers every unresolved comment, either with the commit that

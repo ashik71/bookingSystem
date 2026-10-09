@@ -1,0 +1,16 @@
+# bmad-ticket store for SlotBook: GitHub Issues on this repo. The base layer is
+# .claude/skills/bmad-ticket/config/github-ticketing.toml; this file sets only what differs.
+# Mapping and label ownership: docs/process/SANDBOX-WORKFLOW.md -> Work hierarchy.
+
+[tickets]
+store = "github"
+repo = "ashik71/bookingSystem"
+
+# BMAD's states map onto the sandbox's ai:* labels, so an issue has one set of status labels.
+# "Start a story" in BMAD = queue it for the sandbox; review = the agent's PR is open.
+[tickets.status]
+backlog = "backlog"
+in-progress = "ai:queue"
+review = "ai:pr-ready"
+done = "closed"
+dropped = "closed: not planned"

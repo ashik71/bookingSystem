@@ -11,6 +11,8 @@
 #
 # Exit: 0 done · 10 paused at usage limit · 11 hit max turns · 12 agent blocked · 1 failed
 #
+# Model: per mode from sandbox/models.conf (lower model writes, higher model reviews).
+#
 # Env overrides: SLOTBOOK_REPO (owner/name), SLOTBOOK_MAX_TURNS, SLOTBOOK_MODEL,
 #                SLOTBOOK_TRUSTED (comma-separated logins), SLOTBOOK_IMAGE
 #
@@ -60,6 +62,8 @@ CLAUDE_CODE_OAUTH_TOKEN=$(security find-generic-password -a "$USER" -s slotbook-
 GH_TOKEN=$(security find-generic-password -a "$USER" -s slotbook-sandbox-github -w) \
   || die "Keychain item slotbook-sandbox-github not found"
 MAX_TURNS=${SLOTBOOK_MAX_TURNS:-$default_turns}
+SLOTBOOK_MODEL=${SLOTBOOK_MODEL:-$(sed -n "s/^$MODE=//p" "$SANDBOX_DIR/models.conf" | tr -d '[:space:]')}
+[ -n "$SLOTBOOK_MODEL" ] || die "no model for mode '$MODE' in sandbox/models.conf"
 export CLAUDE_CODE_OAUTH_TOKEN GH_TOKEN SLOTBOOK_REPO ISSUE MODE MAX_TURNS
 
 optional_env=""
@@ -69,7 +73,7 @@ done
 
 stamp=$(date +%Y%m%d-%H%M%S)
 base="$SLOTBOOK_RUNS/$ISSUE-$MODE-$stamp"
-echo "run-job: #$ISSUE $MODE on $SLOTBOOK_REPO, max-turns $MAX_TURNS → $base.*" >&2
+echo "run-job: #$ISSUE $MODE on $SLOTBOOK_REPO, model $SLOTBOOK_MODEL, max-turns $MAX_TURNS → $base.*" >&2
 
 set +e
 # shellcheck disable=SC2086 # optional_env is a list of flags
@@ -88,9 +92,9 @@ case $rc in
 esac
 
 jq -s --arg issue "$ISSUE" --arg mode "$MODE" --arg outcome "$outcome" --argjson exit "$rc" \
-  --arg repo "$SLOTBOOK_REPO" --arg started "$stamp" '
+  --arg repo "$SLOTBOOK_REPO" --arg started "$stamp" --arg model "$SLOTBOOK_MODEL" '
   (map(select(.type == "result")) | last) as $r
-  | { issue: ($issue | tonumber), mode: $mode, repo: $repo, started: $started,
+  | { issue: ($issue | tonumber), mode: $mode, model: $model, repo: $repo, started: $started,
       exit: $exit, outcome: $outcome,
       session_id: $r.session_id, num_turns: $r.num_turns,
       duration_ms: $r.duration_ms, total_cost_usd: $r.total_cost_usd }
