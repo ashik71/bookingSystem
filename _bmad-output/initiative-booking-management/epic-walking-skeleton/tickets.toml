@@ -14,6 +14,19 @@ refine = true
 plan_checkpoint = true
 
 [[entry]]
+id = 3
+type = "story"
+title = "Backend code style is enforced by the build"
+description = "Adds the ADR-0007 style configuration and analyzers to every backend project and brings entry 1's backend code into line, so a style violation fails dotnet build."
+verify = "dotnet build from the root has zero diagnostics on the current code, and a deliberate naming or formatting violation fails it with the rule's id."
+covers = ["CAP-5"]
+after = [1]
+hitl = false
+risk = "low"
+refine = true
+plan_checkpoint = true
+
+[[entry]]
 id = 2
 type = "story"
 title = "Each PR is built and tested for the sides it changes"

@@ -4,6 +4,7 @@ companions:
   - ../../../../docs/adr/0003-target-dotnet-10.md
   - ../../../../docs/adr/0005-frontend-angular.md
   - ../../../../docs/adr/0006-monorepo-layout-and-test-stack.md
+  - ../../../../docs/adr/0007-backend-code-style-and-analyzers.md
 sources: []
 ---
 
@@ -34,6 +35,9 @@ land on (Option C, 2026-10-09).
 - **CAP-4**
   - **intent:** Every PR is built and tested automatically for the side or sides it changes.
   - **success:** A PR touching only `src/frontend` runs only the frontend build and tests, and the reverse holds for `src/backend`. A failing test turns the required check red, and the PR can't be merged.
+- **CAP-5**
+  - **intent:** Backend code follows one project style, and the build enforces it.
+  - **success:** A formatting or naming violation from ADR-0007 fails `dotnet build` from the root. The existing backend code builds with zero diagnostics and no suppressions.
 
 ## Constraints
 
@@ -42,6 +46,7 @@ land on (Option C, 2026-10-09).
   - `src/backend` (backend tests under `src/backend/tests`) and `src/frontend`, with a root `SlotBook.slnx`.
   - xUnit v3 + Shouldly for the backend, and Vitest/jsdom with npm for the frontend.
   - Test commands: `dotnet test` from the root, and `npm test` in `src/frontend`.
+- **Backend code style:** ADR-0007. Its rules are build errors, and they are never suppressed to make a build pass.
 - No database, persistence, auth or tenancy.
 - The backend is a single API project. No Clean Architecture layers or modules until the architecture document and ADR-0002 decide them.
 - The frontend and backend share only the HTTP contract. Neither references the other's folder.

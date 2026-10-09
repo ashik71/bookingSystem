@@ -27,6 +27,10 @@
 | CI Option B: one workflow with change detection, and an always-running `ci-ok` check that is the only required check | Spec Constraints, story #5 |
 | Stories carry full Given/When/Then criteria (`refine = true`), because the sandbox agent builds from the issue alone. This overrides BMAD's default | Epic 0 Notes |
 | Third-party actions pinned to a commit SHA; the CI `GITHUB_TOKEN` is read-only | Story #5 Notes |
+| Backend tests move into `src/backend/tests` (the developer deferred to the recommendation) | ADR-0006 (amended) |
+| Tests run on Microsoft.Testing.Platform with `xunit.v3` 4.x. VSTest was dropped after the agent had to pin an old xunit | PR #6 |
+| Backend style follows the developer's reference conventions, written fresh with no external names (client-IP firewall). Enforced as build errors; CS0108 and one-type-per-file kept on. Delivered as story #7 | ADR-0007 |
+| A repo-root `nuget.config` with nuget.org only; Node ≥ 24.15 | PR #6 |
 
 ## Pressure-test — where the developer was challenged
 
@@ -62,7 +66,9 @@
 
 ## PRs reviewed
 
-None yet. The first `plan` run on #4 was in progress at the time of writing.
+| PR | Story | Iterations | What the agent got wrong | Root cause (story / spec / CLAUDE.md / agent) |
+|---|---|---|---|---|
+| #6 | #4 (the health page) | plan + implement + 3 fix rounds, about $1.50 in total | 1. It pinned `xunit.v3` to an old 3.2.2 to stay on VSTest. 2. Tests lived outside `src/backend`. 3. The build broke on a machine with a second NuGet feed (`NU1507`). 4. The README said "Node 24", but Angular 22 needs ≥ 24.15 | 1: **my plan answer** (I told it to stay on VSTest). 2: **the ADR** (the layout was amended). 3 and 4: **spec gaps** (the sandbox is cleaner than a dev machine). The agent followed every instruction, disclosed each deviation, and replied once per thread naming the fixing commit |
 
 ## Rules added to `CLAUDE.md`
 
@@ -77,6 +83,8 @@ None.
   `ai:*` labels.
 - **No independent validation subagent was run** on the breakdown. The Set and
   Dependencies checks ran inline.
+- **The sandbox can't see machine-specific failures.** Two portability bugs, extra NuGet feeds and the Node minimum, were found only by running on the Mac. A local smoke check before merging stays a manual step for now.
+- **The sandbox image had a permission bug.** `/home/agent/.nuget` was owned by root, so the NuGet cache volume never filled. Fixed in the Dockerfile.
 - **The initiative envelope** (`initiative-booking-management.md`) is still frontmatter
   only.
 
@@ -90,6 +98,8 @@ None.
 
 ## Parked for later
 
+- **Frontend code-style reference:** ADR-0007 covers the backend only; the frontend keeps the Angular CLI defaults.
+
 - **The Azure deploy epic:** after the PRD and architecture.
 - **Having `run-job.sh` set the `ai:*` labels:** with the worker.
 - **Playwright E2E:** when there's a real user flow.
@@ -97,7 +107,7 @@ None.
 ## Next session
 
 **007:**
-1. Review the #4 plan.
-2. Run `implement`, review the PR, run `fix`, merge.
-3. Then #5, once the token scope is confirmed.
+1. Merge PR #6.
+2. Run #7 (backend style, ADR-0007) through the sandbox.
+3. Then #5 (CI), once the token scope is confirmed.
 4. Then `bmad-prd`.
