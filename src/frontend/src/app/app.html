@@ -1,0 +1,13 @@
+<main>
+  @switch (health()) {
+    @case ('healthy') {
+      <p>API is healthy</p>
+    }
+    @case ('unavailable') {
+      <p>API is unavailable</p>
+    }
+    @default {
+      <p>Checking API…</p>
+    }
+  }
+</main>
