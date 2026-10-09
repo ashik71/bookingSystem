@@ -1,0 +1,27 @@
+# tickets.toml — epic-walking-skeleton's agreed stories, in build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "The web page shows the API's health"
+description = "Creates the solution, the API with /health, and the Angular app whose page shows healthy or unavailable through the dev proxy, with tests on both sides and README run steps (ADR-0006 layout and test commands)."
+verify = "dotnet test and npm test pass in the sandbox; the reviewer follows the README and sees the page report healthy, then unavailable with the API stopped."
+covers = ["CAP-1", "CAP-2", "CAP-3"]
+after = []
+hitl = false
+risk = "low"
+refine = true
+plan_checkpoint = true
+
+[[entry]]
+id = 2
+type = "story"
+title = "Each PR is built and tested for the sides it changes"
+description = "Adds one CI workflow that runs entry 1's backend and frontend builds and test commands only for the sides a PR changes, plus an always-running aggregate check that is the only required check."
+verify = "A frontend-only PR runs only frontend jobs and a backend-only PR only backend jobs; a deliberately failing test turns the aggregate check red and blocks the merge."
+covers = ["CAP-4"]
+after = [1]
+hitl = true
+risk = "medium"
+refine = true
+plan_checkpoint = true

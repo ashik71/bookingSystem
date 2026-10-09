@@ -1,0 +1,7 @@
+# tickets.toml — the initiative's epics in build order. Later epics are added after the PRD and architecture.
+
+[[epic]]
+id = 0
+slug = "epic-walking-skeleton"
+title = "Walking skeleton: the web page shows the API's health, checked by CI"
+covers = []
