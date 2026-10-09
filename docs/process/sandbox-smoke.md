@@ -1,3 +1,3 @@
 # Sandbox smoke test
 
-This file was created by issue #1 (ashik71/bookingSystem#1) to test the sandbox pipeline.
+This file was created by issue #1 to test the sandbox pipeline.

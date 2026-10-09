@@ -4,3 +4,4 @@
 - [x] Update `.ai/progress.md`
 
 Status: done. No tests apply (no solution in `src/` yet).
+- [x] Address review: drop repo name from smoke file sentence
