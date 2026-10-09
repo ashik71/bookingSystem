@@ -122,6 +122,11 @@ warning. With SA1101 off, IDE0003 alone doesn't fail `dotnet build`, so without 
   matching, throw expressions, null propagation, coalescing, initializers, expression
   bodies. *(Amended 2026-10-09.)*
 
+**IDE rules raised to warning, which fails the build** *(amended 2026-10-09, from PR #8)*:
+IDE0055 (formatting), IDE0011 (braces), IDE0065 (`using` placement), IDE0007/IDE0008 (`var`),
+IDE0049 (predefined types), IDE0040 (accessibility), IDE0044 (`readonly`), IDE0036 (modifier
+order), IDE1006 (naming), IDE0003/IDE0009 (qualification).
+
 **Test method names** follow the same naming as everything else: PascalCase, with no
 underscores. CA1707 stays on for test projects too. *(Decided 2026-10-09.)*
 

@@ -4,7 +4,7 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 006 · 2026-10-09
-**Next session:** 007: merge PR #6 → #7 (style, ADR-0007) through the sandbox → #5 (CI). Then `bmad-prd`
+**Next session:** 007: #5 (CI) through the sandbox, once the bot PAT's `workflow` scope is confirmed; close Epic 0. Then `bmad-prd`
 
 ---
 
@@ -22,7 +22,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | **BMAD planning** | Brief ✅ · Epic 0 spec + 3 refined stories ✅ (published: epic #3; stories #4, #7 style, #5 CI) · PRD ⬜ · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix all tested by hand, 2026-10-09) · models per mode (`sandbox/models.conf`) ✅ · ⬜ `review` mode, CI, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
-| **Code** | PR #6 (story #4: `/health` + Angular page) is ready to merge: 1 plan, 1 implement, 3 fix rounds, ~$1.50, AC 5 checked in Chrome on the Mac. Not merged yet |
+| **Code** | Merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds) and #7 backend style enforced by build (PR #8, ~$1.10, 0 fix rounds). Epic 0 remaining: #5 CI |
 | **Blocked on** | #5 (CI) waits on #4 and on the bot's classic PAT having the `workflow` scope (the developer checks) |
 | **Sequencing** | Option C (2026-10-09): build an Epic 0 walking skeleton (Angular + .NET 10 + `/health`, no DB) through the sandbox while the PRD and architecture continue |
 
@@ -71,7 +71,6 @@ Don't let a session assume an answer to any of these.
 | 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
 | 005 | `colima stop` after each sandbox session | Habit |
 | 006 | Confirm that the bot's classic PAT has the `workflow` scope (blocks #5) | Open |
-| 006 | Merge PR #6 (resolve the threads; use a merge commit or rebase, not squash) | Open |
 | 006 | Upgrade Node on the Mac to ≥ 24.15 (Angular 22 requirement) | Open |
 
 ---

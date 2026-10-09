@@ -10,7 +10,7 @@ hitl: false
 risk: low
 tracker_id: "7"
 remote: "https://github.com/ashik71/bookingSystem/issues/7"
-tracker_status: backlog
+tracker_status: done
 ---
 
 # Backend code style is enforced by the build

@@ -69,6 +69,7 @@
 | PR | Story | Iterations | What the agent got wrong | Root cause (story / spec / CLAUDE.md / agent) |
 |---|---|---|---|---|
 | #6 | #4 (the health page) | plan + implement + 3 fix rounds, about $1.50 in total | 1. It pinned `xunit.v3` to an old 3.2.2 to stay on VSTest. 2. Tests lived outside `src/backend`. 3. The build broke on a machine with a second NuGet feed (`NU1507`). 4. The README said "Node 24", but Angular 22 needs ≥ 24.15 | 1: **my plan answer** (I told it to stay on VSTest). 2: **the ADR** (the layout was amended). 3 and 4: **spec gaps** (the sandbox is cleaner than a dev machine). The agent followed every instruction, disclosed each deviation, and replied once per thread naming the fixing commit |
+| #8 | #7 (backend style) | plan + implement, 0 fix rounds, about $1.10 | Nothing. The plan **prototyped the config in a throwaway copy** and found two holes in ADR-0007 before any code was written: `this.` couldn't fail the build, and stable StyleCop raises a false SA1516. It also flagged that the ADR didn't list the IDE ids | **ADR gaps**, caught at plan time. Lesson: a plan run that prototypes is worth its cost ($0.85) |
 
 ## Rules added to `CLAUDE.md`
 
@@ -107,7 +108,7 @@ None.
 ## Next session
 
 **007:**
-1. Merge PR #6.
-2. Run #7 (backend style, ADR-0007) through the sandbox.
-3. Then #5 (CI), once the token scope is confirmed.
+1. Run #5 (CI) through the sandbox. First confirm that the bot's classic PAT has the `workflow` scope.
+2. After it merges, make `ci-ok` a required check and run the failing-test proof (criterion 7).
+3. Close Epic 0 (closure check).
 4. Then `bmad-prd`.
