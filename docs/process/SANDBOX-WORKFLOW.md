@@ -91,12 +91,32 @@ Merging the PR (developer only) closes the issue through `Closes #<n>`.
 
 ## The sandbox
 
-- **Image** (`sandbox/Dockerfile`): an ARM64 Linux base with the .NET SDK, Node, git,
-  `gh` and Claude Code installed, running as a non-root user.
-- **Job script** (`sandbox/run-job.sh <issue> <plan|implement|fix>`): starts a fresh
-  container with `--memory 3g --cpus 3`, clones the repo, builds the prompt from
-  `sandbox/prompts/<mode>.md`, and runs `claude -p` capped with `--max-turns`. It
-  saves the output to `runs/<issue>-<time>.jsonl`, then removes the container.
+- **Image** (`sandbox/Dockerfile`): the .NET 10 SDK image (ARM64) with Node, git, `gh`,
+  jq and a pinned Claude Code installed. `run-job.sh` rebuilds it automatically when
+  `Dockerfile` or `entrypoint.sh` change.
+- **Job script** (`sandbox/run-job.sh <issue> <plan|implement|fix>`): reads the two
+  secrets from the Keychain and starts a fresh container (`--memory 3g --cpus 3`, all
+  capabilities dropped except the two needed to switch user). It pipes in
+  `sandbox/prompts/<mode>.md` and saves the run to
+  `$SLOTBOOK_RUNS/<issue>-<mode>-<time>.{jsonl,log,meta.json}`. The container is
+  removed afterwards. Exit codes: `0` done, `10` paused at the usage limit, `11` hit
+  max turns, `12` agent blocked, `1` failed. The worker maps these to labels;
+  `run-job.sh` never touches labels.
+- **Two users inside the container** (`sandbox/entrypoint.sh`). The repo is public, so
+  anyone can write an issue comment, and that comment could carry a prompt injection.
+  So **the agent never holds the GitHub token**:
+  - *root* (no capabilities beyond switching user) holds `GH_TOKEN`. It reads the
+    issue, passing on only comments by trusted authors (repo owner + bot). For `fix`
+    it also reads the unresolved review threads. It pushes the branch and posts the
+    agent's outputs.
+  - *agent* (non-root, a different uid, so it can't read root's environment) runs
+    `claude -p --dangerously-skip-permissions` with the Claude token only. It commits
+    locally and writes its outputs to `/work/out`: `plan.md`; `pr-title.txt` +
+    `pr-body.md`; `replies.json` (one reply per `comment_id`) + optional
+    `summary.md`; or `blocked.md`.
+  - root pushes only `ai/<issue>-*`, with no force, via a separate bare clone, so it
+    never runs git inside the agent's working copy. It adds `Closes #<n>` if missing.
+    If the run stops mid-way, leftover changes are committed as `WIP: …` and pushed.
 - **Worker:** a background service that polls GitHub every 60 seconds and runs at
   most one job at a time. It later becomes the backend of the dashboard.
 - **Dashboard** (its own epic, built through this same pipeline): ASP.NET Core +
@@ -114,10 +134,11 @@ Mac itself.**
 - Always plan before implementing. A rejected plan costs far less than a rejected
   implementation.
 - Cap every run with `--max-turns`.
-- **When a usage limit is hit:** commit `WIP: paused at limit`, push the branch, save
-  the `session_id`, and set `ai:paused-limit`. After the reset, resume with
-  `claude -p --resume <id> "Continue from .ai/progress.md"`. If the session can't
-  be resumed, start a fresh run that reads `.ai/progress.md` and `git log`.
+- **When a usage limit is hit:** the job commits `WIP: paused at limit` and pushes the
+  branch. The `session_id` is saved in the run's `.meta.json`, and the worker sets
+  `ai:paused-limit`. After the reset, re-run `implement`. The fresh run finds the
+  existing branch and continues from `.ai/progress.md` and `git log`. `claude --resume`
+  isn't used, because the session file is lost when the container is removed.
 - Never have more than one half-finished branch. Let a paused story resume before
   starting a new one.
 - Measure for two weeks before deciding whether a bigger plan is worth paying for.
@@ -132,8 +153,9 @@ Mac itself.**
 
 ## Safety rules (never break these)
 
-- The sandbox gets exactly two secrets: a Claude token and a GitHub fine-grained
-  token scoped to this repo only (Contents, Issues, Pull requests).
+- The sandbox gets exactly two secrets: a Claude token, and the bot account's
+  `public_repo` token (see *One-time setup*). Only the job script inside the
+  container holds the GitHub token; the agent never does.
 - `main` is protected. Only the developer merges.
 - Never mount the home folder into the container. The repo is cloned fresh inside.
 - No client data, names or credentials ever enter this repo or its test data.
@@ -158,17 +180,17 @@ unplugged, the sandbox doesn't run.
    ```
    Only the runs folder is shared into the VM. Your home folder is not visible
    inside it. Stop it with `colima stop` when you're done, to free RAM.
-3. ⬜ `gh auth login` (browser).
-4. ⬜ Sandbox secrets, stored in the macOS Keychain and never in a file:
+3. ✅ `gh auth login` (browser).
+4. ✅ Sandbox secrets, stored in the macOS Keychain and never in a file:
    - Claude: `claude setup-token`, then
      `security add-generic-password -a "$USER" -s slotbook-sandbox-claude -w`
    - GitHub: a classic PAT with only the `public_repo` scope, created on the **bot
      account** (see below), then
      `security add-generic-password -a "$USER" -s slotbook-sandbox-github -w`
-5. ⬜ Protect `main` with a ruleset: require a PR with 1 approval, block force
+5. ✅ Protect `main` with a ruleset: require a PR with 1 approval, block force
    pushes, restrict deletions. Only the repo admin (the developer) can bypass.
-6. ⬜ Create the labels above with `gh label create`.
-7. ⬜ Build the sandbox image and test `run-job.sh` by hand on one issue before
+6. ✅ Create the labels above with `gh label create`.
+7. ✅ Build the sandbox image and test `run-job.sh` by hand on one issue before
    building the worker.
 
 **The agent has its own GitHub identity.** The sandbox uses a separate free bot
