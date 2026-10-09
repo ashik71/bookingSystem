@@ -20,8 +20,8 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | Track | Status |
 |---|---|
 | **BMAD planning** | Brief ✅ · PRD ⬜ next · UX ⬜ · Architecture ⬜ · Epic specs/tickets ⬜ |
-| **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix all tested by hand on smoke issue #1 / PR #2, 2026-10-09) · ⬜ worker, dashboard |
-| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + `story` labels ✅ · smoke issue #1 + PR #2 open (close both without merging) |
+| **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix all tested by hand, 2026-10-09) · ⬜ worker, dashboard |
+| **GitHub** | Bot `ashik71-slotbot` (Write) ✅ · ruleset `protect-main` ✅ · `ai:*` + `story` labels ✅ · no milestones or issues yet |
 | **Code** | None. `src/` is empty; the first epic's foundation story creates the solution |
 | **Blocked on** | Nothing. Planning and pipeline setup can run in parallel |
 
