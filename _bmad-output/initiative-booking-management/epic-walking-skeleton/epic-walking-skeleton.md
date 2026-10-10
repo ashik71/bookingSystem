@@ -7,6 +7,7 @@ parent: initiative-booking-management
 covers: []
 after: []
 assignee: ""
+status: done
 risk: medium
 ---
 
