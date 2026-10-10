@@ -80,7 +80,6 @@ Don't let a session assume an answer to any of these.
 | Set in | Task | Status |
 |---|---|---|
 | 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
-| 008 | Ask the clinic to count its booking calls for 2 weeks before launch (SM-10 baseline) | Open |
 | 005 | `colima stop` after each sandbox session | Habit |
 | 006 | Upgrade Node on the Mac to ≥ 24.15 (Angular 22 requirement) | Open |
 

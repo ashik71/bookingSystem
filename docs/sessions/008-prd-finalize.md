@@ -51,6 +51,11 @@
 - **Review findings.** The developer said a standard doctor–patient booking system
   already answers most edge cases, and that they should be applied, not asked. They
   were applied that way.
+- **SM-10 (phone calls drop by half).** The developer pointed out that phone booking
+  stays on purpose: a practitioner keeps some places back (for example 5 of 20) for
+  callers and walk-ins. So the goal was wrong. SM-10 became the online booking share,
+  read from SlotBook's own data, and reserved places are now described as being for
+  phone, walk-in and missed patients.
 
 ## Artifacts produced
 
@@ -88,8 +93,6 @@ None.
 
 ## Homework set
 
-- [ ] Ask the clinic to count its booking calls for 2 weeks before launch (the SM-10
-      baseline)
 - [ ] Optional: skim the changed core rules: §3 *Place*, FR-14, FR-22, FR-24, FR-26
       and FR-45
 - [ ] Write the brief entry in `docs/learning/LEARNINGS.md` (carried over from 004)

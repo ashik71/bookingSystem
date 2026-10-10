@@ -176,8 +176,9 @@ zone.
   `cancelled`. *Reserved* places are held back and used by no booking. *Free* =
   capacity − reserved − taken.
 - **Reserved place** — a place that the slot's practitioner, or an owner, holds back
-  (FR-12). Patients see it but can't book it. Only a practitioner booking can use it,
-  and it then becomes taken.
+  (FR-12) for patients who phone, walk in or missed a booking. Patients see it but
+  can't book it online. Only a practitioner booking can use it, and it then becomes
+  taken.
 - **Release** — turning reserved places back into free places.
 - **Closed slot** — a slot that accepts no new bookings. Its existing bookings stay
   until someone cancels them.
@@ -425,10 +426,13 @@ date for one practitioner or for the clinic.
 
 ### 4.3 Reserved places
 
-**Description:** A practitioner holds back some places so that a patient who missed a
-booking can be fitted in later in the week. Patients see that the places exist but
-can't book them. The practitioner can release reserved places to everyone at any
-time. Realizes UJ-2, UJ-5.
+**Description:** A practitioner holds back some places for patients who don't book
+online: those who phone the clinic or walk in, and those who missed a booking and
+need to be fitted in later in the week. For example, a slot with capacity 20 and 5
+reserved places shows 15 places to book online, and the practitioner books phone
+callers into the other 5. Patients see that the reserved places exist but can't book
+them online. The practitioner can release reserved places to everyone at any time.
+Phone and walk-in booking stay a normal channel on purpose. Realizes UJ-2, UJ-5.
 
 #### FR-12: Reserve places
 
@@ -1237,12 +1241,13 @@ demonstrable:
 - **SM-9: Demo-ready.** Publish, reserve, book, ticket, door check, and rebooking into
   a reserved place all run end to end in `bn`, `en` and `ar`. Validates the core flow
   of §4.2 to §4.5 and FR-43.
-- **SM-10: Phone traffic drops.** After launch, the clinic's booking calls drop by at
-  least half within 4 weeks, as reported by the clinic. The baseline is the clinic's
-  own count of booking calls over the 2 weeks before launch.
-- **SM-11: Missed patients fitted in.** After launch, practitioner bookings into
-  reserved places are counted each week from the audit log. Zero for 4 weeks in a row
-  means reserved places aren't doing their job. Validates FR-12 to FR-14.
+- **SM-10: Online booking share.** Each week, patient (online) bookings as a share of
+  all bookings, read from the booking data. It is watched, not targeted: phone and
+  walk-in bookings through reserved places are expected. Validates FR-15.
+- **SM-11: Reserved places in use.** After launch, practitioner bookings into reserved
+  places (phone, walk-in and missed patients) are counted each week from the audit
+  log. Zero for 4 weeks in a row means reserved places aren't doing their job.
+  Validates FR-12 to FR-14.
 - **SM-12: Door claims and impersonation caught.** *Not genuine* door checks and fraud
   reports are counted each week, from the logs and the fraud-report list. A falling
   trend after launch means the ticket and warnings work. Validates FR-24, FR-26,
@@ -1315,5 +1320,5 @@ Every assumption the draft made, with its resolution. All were resolved in sessi
 | A27 | NFR-9 | **Confirmed:** full numbers in an owner's CSV export, audited |
 | A28 | NFR-15 | **Changed:** WCAG 2.2 AA; the OTP field allows paste and autofill |
 | A29 | NFR-18, Q5 | **Confirmed:** no uptime target for v1 |
-| A30 | SM-10 | **Confirmed:** the clinic counts booking calls for 2 weeks before launch |
+| A30 | SM-10 | **Changed:** SM-10 now reads the online booking share from SlotBook's data; phone booking stays a channel, so no call count is needed |
 | A31 | FR-27 | **Confirmed:** push in addition to SMS, never instead |
