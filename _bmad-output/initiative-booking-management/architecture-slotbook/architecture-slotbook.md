@@ -52,9 +52,9 @@ flowchart TB
     subgraph Simple["Simple module (Tenancy, Notifications, ClinicContent, Chat, Audit)"]
         SM["{Module}<br/>Domain/ Application/ Infrastructure/ folders"]
     end
-    LC["{Module}.Contracts<br/>integration events + public queries"]
+    LC["{Module}.Contracts<br/>integration events, public queries,<br/>public commands, audit actions"]
     subgraph SK["SharedKernel"]
-        SKI["SharedKernel.Infrastructure<br/>MongoDB UoW, MassTransit outbox, jobs"] --> SKA["SharedKernel.Application<br/>dispatcher, IUnitOfWork, clock, audit writer"] --> SKD["SharedKernel.Domain<br/>AggregateRoot, DomainException"]
+        SKI["SharedKernel.Infrastructure<br/>MongoDB UoW, MassTransit outbox, jobs"] --> SKA["SharedKernel.Application<br/>dispatcher, IUnitOfWork, clock,<br/>audit + owner-alert writers, ISmsChannel"] --> SKD["SharedKernel.Domain<br/>AggregateRoot, DomainException,<br/>MobileNumber, LocalizedText"]
         SKE["SharedKernel.IntegrationEvents"]
     end
     Host --> LI
@@ -75,13 +75,13 @@ their module projects.
 
 | Module | Shape | Owns (aggregates) | Built by |
 | --- | --- | --- | --- |
-| `Tenancy` | simple | Tenant (settings FR-39, reason categories, languages, booking-limit settings) | epic 2 |
-| `Identity` | layered | Patient, StaffAccount (roles, active, password, TOTP, recovery codes), OtpChallenge, KnownDevice, Session, OtpBudget (per tenant per local day) | epics 2, 4 |
-| `Booking` | layered | Week, Slot, Booking, PatientLedger; staff lists, patient lookup, door check, public ticket check | epics 3, 5, 7, 8, 9 |
+| `Tenancy` | simple | Tenant: **every** FR-39 setting, including per-language texts (home warning, privacy notice, chat response time), reason categories (retire-only), languages, booking-limit settings, ticket prefix | epic 2 |
+| `Identity` | layered | Patient, StaffAccount (roles, active, password, TOTP, recovery codes), StaffRoster (one per tenant), OtpChallenge, KnownDevice, Session, OtpBudget (per tenant per local day) | epics 2, 4 |
+| `Booking` | layered | Week, PractitionerWeek, Slot, Booking, PatientLedger; staff lists, patient lookup, door check, public ticket check, the reminders job | epics 3, 5, 7, 8, 9 |
 | `Notifications` | simple | Notification, PushSubscription, notification channels (SMS, push, development) | epic 6 |
-| `ClinicContent` | simple | OfficialContacts, Announcement, FraudReport | epics 9, 11 |
+| `ClinicContent` | simple | OfficialContacts, Announcement, FraudReport only (the home warning text is a Tenancy setting) | epics 9, 11 |
 | `Chat` | simple | Conversation, Message, CannedReply | epic 12 |
-| `Audit` | simple | AuditEntry (append-only), OwnerAlert | epic 2 |
+| `Audit` | simple | AuditEntry (append-only), OwnerAlert (written by any module through the shared writer, AD-3) | epic 2 |
 
 ## Invariants & Rules
 
@@ -105,7 +105,7 @@ their module projects.
   - Project references follow the diagram above and nothing else.
   - `SharedKernel.Domain`, every `{Module}.Domain` and every `.Contracts` project
     reference no MongoDB, MassTransit or ASP.NET package.
-  - Fitness tests (NetArchTest) fail the build if any of these holds, in every module,
+  - Fitness tests (ArchUnitNET) fail the build if any of these holds, in every module,
     including inside the folders of a simple module:
     - Domain code depends on Application or Infrastructure code, `MongoDB.*` or
       `MassTransit`;
@@ -119,12 +119,35 @@ their module projects.
   collections, which blocks later extraction and splits invariants.
 - **Rule:**
   - Every aggregate belongs to exactly one module (table above). A module writes only
-    its own collections. The single exception is audit entries: any module records them
-    through the shared audit writer in `SharedKernel.Application`, inside its own
-    transaction (AD-10).
+    its own collections. The two exceptions are **audit entries and owner alerts**: any
+    module records them through `IAuditWriter.Record(...)` and
+    `IOwnerAlertWriter.Raise(kind, dedupKey)` in `SharedKernel.Application`, inside its
+    own transaction.
+    - An alert's `_id` is derived from `(tenantId, kind, dedupKey)`; a duplicate key
+      means "already raised" (AD-8). Dedup keys: OTP budget → the tenant's local date;
+      count drift → slot id + local date; notification failure → notification id;
+      erasure incomplete → patient id. Alert kinds are an enum in `Audit.Contracts`. The
+      writer also logs every alert through one `[LoggerMessage]` (FR-45).
+    - **Audit entry contract:** `AuditEntry { tenantId, at (UTC), actor { kind:
+      staff|patient|system, id?, roles[] }, action, target { type, id }, details }`.
+      `action` is `"{module}.{noun}.{verb}"` (`booking.booking.cancelled`), declared as
+      constants in `{Module}AuditActions` in `.Contracts`; the audit browse filter lists
+      them by reflection. `details` is a typed record per action holding ids, enums,
+      numbers and instants only; a fitness test rejects free `string` properties. A
+      scheduled publication is audited with the owner who scheduled it as actor and
+      `details.trigger = scheduled`.
   - **Reads across modules:** dispatch a public query declared in the owning module's
     `{Module}.Contracts`. The owner handles it. A module never touches another
-    module's repositories or collections.
+    module's repositories or collections. Queries that serve lists are batch-shaped
+    (`GetStaffDisplayNamesQuery(ids[])`) and the caller may cache them in process for
+    60 s. A module never copies another module's **mutable** display data (names, texts)
+    into its own documents; immutable facts (ids, dates) may be copied.
+  - **Writes across modules in one transaction:** the owner exposes a **public command**
+    in its `.Contracts` (for example `EnsurePatientCommand(mobileNumber) → patientId`).
+    Its handler runs inside the caller's unit of work (same session, same transaction)
+    and is the only code that writes the owner's collections. Every public command is
+    listed here; adding one needs the developer's sign-off. Current list:
+    `Identity.EnsurePatient` (get-or-create, never returns an erased patient).
   - **Reactions across modules:** integration events declared in the publishing
     module's `{Module}.Contracts`. Consumers depend only on that contract.
   - A module project references only `SharedKernel.*` and other modules' `.Contracts`.
@@ -132,7 +155,20 @@ their module projects.
   - Each module registers itself through one `Add{Module}Module()` in its
     Infrastructure. The host calls one line per module and holds no module logic.
   - Patient erasure (FR-44) is one `PatientErased` event from Identity. Each module
-    erases its own data, idempotently.
+    erases its own data, idempotently. Booking first sets the ledger tombstone (AD-6),
+    then cancels each active booking through the normal Cancel use case (actor `system`,
+    no notification) and de-identifies it, one transaction per booking.
+  - **Tenant settings** have one owner, Tenancy. Other modules read them only through
+    `Tenancy.Contracts.GetTenantSettingsQuery`. Per-language text everywhere is one
+    shape, `LocalizedText` in `SharedKernel.Domain`, with the FR-39 fallback to the
+    default language applied by one shared helper.
+  - **Reason categories are retire-only** (developer, 2026-10-10): there is no delete,
+    so no cross-module "in use" check exists. A booking stores `reasonCategoryId`;
+    Booking checks "exists and not retired" through the settings query when booking.
+  - **Mobile numbers:** one `MobileNumber` value object in `SharedKernel.Domain` parses
+    and normalizes every number (digits, country default from the tenant). Every module
+    and every per-number rate-limit key uses its E.164 form. Number → patient id is
+    `Identity.Contracts.FindPatientByNumberQuery`.
 
 ### AD-4 — Aggregates own their state; handlers own mutation
 
@@ -143,6 +179,14 @@ their module projects.
   - Every mutable aggregate property has a `private set`. Creating an aggregate or
     changing its state happens only through a named method on the aggregate. A
     transition from the wrong state throws `DomainException`, which becomes 422.
+  - **Refusals with effects.** `DomainException` is only for refusals that change
+    nothing. A refusal that must persist something (an attempt counter, an owner alert,
+    an audit entry) records the effect through the aggregate method, the handler
+    commits, and then returns `Result.Refused(code)`, which the API maps to 422 (or 429).
+    Refusals decided outside a handler (authorization, rate limiting) are recorded by one
+    host-level `IRefusalRecorder` in `SlotBook.Api`, which dispatches a
+    `RecordRefusalCommand` to Audit in its own transaction. Test: 6 parallel wrong OTPs
+    for one challenge leave it invalidated.
   - Only a command handler loads aggregates through a write repository, calls their
     methods and commits the unit of work.
   - Query handlers read through read repositories and never mutate.
@@ -155,6 +199,11 @@ their module projects.
   - A handler performs no external side effect before commit. External effects such as
     SMS and push leave through the outbox only, so re-running a handler (AD-7) is always
     safe.
+  - **The one exception is the OTP SMS** (developer, 2026-10-10). Identity commits the
+    challenge with the OTP **hash only**, then sends the plaintext synchronously through
+    `ISmsChannel` (in `SharedKernel.Application`, implemented by Notifications). The
+    plaintext never reaches MongoDB, the outbox or the broker (FR-2). The patient's
+    "resend" is the retry.
 
 ### AD-5 — Tenant isolation: shared collections, tenant from the session
 
@@ -170,15 +219,25 @@ their module projects.
     sign-in, public ticket check, official contacts, announcements) read the tenant slug
     from the **`X-Tenant` header**. Angular sends it, mapped from its own host name by
     configuration. Signing in binds the new session to that tenant.
-  - The repository and unit of work apply the request's tenant filter to every read and
+  - The repository and unit of work apply the current tenant filter to every read and
     write, and stamp `tenantId` on insert. Handlers never write a tenant filter.
+  - The current tenant is one ambient `ITenantContext`, set by exactly three entry
+    points: the HTTP pipeline (session or `X-Tenant`), the consumer pipeline (from the
+    event's `TenantId`), and the job runner. There is no unfiltered repository API
+    except for `[GlobalAggregate]` documents.
+  - Every integration event derives from `TenantEvent { Guid EventId; Guid TenantId;
+    DateTimeOffset OccurredAt }` in `SharedKernel.IntegrationEvents`.
+  - A job lists tenants through `Tenancy.Contracts.GetActiveTenantIdsQuery` and runs its
+    body once per tenant inside a tenant scope. Leases and migrations are the only
+    `[GlobalAggregate]` writes.
   - Every unique index begins with `tenantId`.
   - Every aggregate is either tenant-owned or carries an explicit `[GlobalAggregate]`
     marker.
   - Fitness tests fail the build if:
     - any action takes a tenant route or query parameter;
     - an anonymous tenant-scoped action lacks `[TenantFromHeader]`;
-    - a signed-in action carries `[TenantFromHeader]`.
+    - a signed-in action carries `[TenantFromHeader]`;
+    - code outside `SharedKernel.Infrastructure` constructs an unfiltered collection.
   - The cross-tenant integration suite covers every endpoint.
 
 ### AD-6 — One invariant, one guard document
@@ -194,13 +253,21 @@ their module projects.
   | Invariant | Guard document | Write paths that must write it |
   | --- | --- | --- |
   | Capacity (free / reserved / taken), sequence numbers (`nextSeq`, never decremented), slot status | Slot | book (patient and practitioner), cancel, reserve, release, change capacity, close, publish |
-  | Booking limit: active bookings and patient bookings per week, per number | PatientLedger (one per tenant + patient) | patient book, cancel of a counted booking |
+  | Booking limit: active (confirmed) patient bookings, and patient bookings per week, per patient | PatientLedger (one per tenant + patient) | patient book; **every transition out of `confirmed`** of a counted booking (cancel, check-in, lapse, erasure cancel) |
+  | Erasure tombstone | PatientLedger (`erased: true`) | the erasure consumer; **every** booking path (patient and practitioner) loads and writes the ledger and refuses with `not_found` when erased |
   | Booking state (confirmed, checked_in, cancelled, lapsed) | Booking | check-in, cancel, lapse |
   | Daily OTP budget | OtpBudget (one per tenant + local day) | OTP issue |
-  | Publication (a week is published at most once) | Week, plus each of its Slots | publish, add or edit a draft slot |
+  | Publication (a week is published at most once) | Week, plus each of its Slots | publish; add a slot to a published week; add or edit a draft slot |
+  | No overlapping slots per practitioner (FR-7) | PractitionerWeek (one per tenant + practitioner + week start date) | add slot (draft or published), edit draft slot times, copy last week |
+  | At least one enabled owner per tenant (FR-38) | StaffRoster (one per tenant: enabled owner count) | disable, re-enable, add or remove the owner role, create an owner |
 
-  A new invariant gets a guard document and a row in this table, in an ADR, before any
-  code is written.
+  - A booking stores `countsTowardLimit` (true for patient bookings, false for
+    practitioner bookings). Every transition method on Booking returns whether the
+    ledger must change; the handler loads and saves the ledger in the same transaction.
+    The weekly count drops only on cancel (FR-17), never on check-in or lapse.
+  - A new invariant gets a guard document and a row in this table, in an ADR, before any
+    code is written. **A story that discovers a cross-document invariant not in this
+    table stops and comments on the issue; it does not invent a guard.**
 
 ### AD-7 — The write mechanism: unit of work, version check, one transaction, whole-handler retry
 
@@ -220,19 +287,38 @@ their module projects.
     retries run out, the API answers 409 `concurrency_conflict`.
   - Handlers never call the MongoDB driver or `IMongoCollection` directly.
   - Every row of AD-6 has a concurrency test against a real replica set (NFR-1's list).
+  - **Bulk actions** (bulk cancel, FR-11) are N independent commands, one transaction
+    each, dispatched in sequence by an application service that is not itself a handler.
+    It returns a per-item result list `{ id, outcome: done|refused, code }`. No
+    transaction spans more than one instance of the same aggregate type, except
+    publication (Week + its Slots).
 
 ### AD-8 — Uniqueness and dedup by identity
 
 - **Binds:** epics 5, 6, 7; FR-15, FR-22, FR-28, FR-29
 - **Prevents:** duplicate SMS on redelivery; ticket-code collisions; one number holding
-  two places in one slot; a separate idempotency key drifting from the real identity.
+  two places in one slot; two patients for one number; an idempotency store drifting
+  from the real identity.
 - **Rule:**
-  - There is no separate idempotency key. Identity is the dedup token.
-  - A Notification's `_id` is derived deterministically from (booking id, notification
-    kind) for booking notifications, and from the source event id otherwise. A
-    redelivered message collides on `_id`, and the consumer treats that as "already
-    done".
-  - **Ticket code:** a partial unique index on `(tenantId, ticketCode)` where
+  - Dedup lives on the real documents. There is no separate idempotency collection.
+  - **Booking request key (FR-15):** the client key is stored on the Booking as
+    `requestKey`, with a partial unique index
+    `ux_bookings_tenantId_patientId_requestKey`. A booking command first looks up the
+    patient's booking by `requestKey`: same slot → return it (same status, same body);
+    different slot → 400 `validation_failed`. A `DuplicateKey` on this index re-runs the
+    handler, which then finds the original.
+  - **Patient identity:** a partial unique index `ux_patients_tenantId_mobileNumber`
+    where `erased: false`. `EnsurePatient` is get-or-create and re-runs on `DuplicateKey`.
+  - A Notification's `_id` is derived from **(source key, recipient patient id,
+    channel)**. The source key is (booking id, kind) for booking notifications, the
+    announcement id for fan-out, and the conversation message id for chat notices. Each
+    channel (SMS, push) is sent and retried independently. A redelivered message
+    collides on `_id`, and the consumer treats that as "already done".
+  - **Ticket code:** `ticketCode` stores exactly the 4 canonical upper-case characters;
+    the prefix is never stored, and display uses the tenant's **current** prefix. One
+    `TicketCode.Parse(input)` in `Booking.Domain` (case, spaces, optional prefix and
+    hyphen, Bangla and Arabic-Indic digits) is the only parser, used by the door check
+    and the public check. A partial unique index on `(tenantId, ticketCode)` where
     `codeLive: true`. A daily job sets `codeLive: false` for bookings whose slot date
     has passed in the tenant's time zone. Codes come from a cryptographic RNG; on a
     duplicate key the handler re-runs with a new code.
@@ -271,10 +357,24 @@ their module projects.
   - Application stages events through `IUnitOfWork.AddIntegrationEvent`.
     Infrastructure publishes them through MassTransit's **MongoDB bus outbox** on the
     unit of work's session. Consumers use MassTransit's MongoDB inbox.
-  - **Over the broker:** retryable side effects only, meaning notification sends and
-    announcement fan-out.
-  - **Never over the broker:** the booking write itself, and **audit entries**, which
-    are written in the acting transaction.
+  - **Every integration event** leaves through the outbox and is consumed through the
+    inbox. There is no in-process event dispatch across modules.
+  - **Never an integration event:** the booking write itself, audit entries and owner
+    alerts (written in the acting transaction, AD-3), and the OTP (AD-4).
+  - **Event content:** ids, enums, UTC instants and immutable non-personal facts only.
+    An event never carries a mobile number, attendee name, age, note, OTP, cancel reason
+    or message text. Consumers resolve personal data at handling time through the
+    owners' public queries (`Identity.Contracts.GetPatientContactQuery`,
+    `Booking.Contracts.GetBookingForNotificationQuery`), so an erased patient resolves
+    to "gone" and nothing is sent. Each event documents its fields in its Contracts XML
+    doc; adding a field is additive only.
+  - **Fan-out:** ClinicContent stages `AnnouncementNotifyRequested { announcementId,
+    filter }`. The Notifications consumer resolves recipients once through
+    `Booking.Contracts.GetPatientsWithActiveBookingsQuery(filter)` and stages one send
+    per patient. The preview count uses the same query. ClinicContent writes one audit
+    entry per announcement notify at confirm, with the recipient count in `details`.
+  - Erasure consumers are idempotent and failure-visible: a `PatientErased` message in
+    the error queue raises an owner alert of kind `erasure_incomplete`.
   - Integration events live in the publisher's `{Module}.Contracts`. They are
     past-tense, with no `Event` or `IntegrationEvent` suffix (`BookingConfirmed`). Each
     event is published and consumed as exactly one concrete type.
@@ -284,8 +384,8 @@ their module projects.
     messages.
   - **Notification sends use two priority endpoints**, so a fan-out burst never delays
     a waiting user:
-    - **high** (its own queue and concurrency): OTP, booking confirmation and
-      cancellation;
+    - **high** (its own queue and concurrency): booking confirmation and cancellation
+      (the OTP is sent directly, AD-4);
     - **low**: reminders, chat-reply notices and announcement fan-out.
 
 ### AD-11 — Background work: in-process timers with catch-up semantics
@@ -303,15 +403,22 @@ their module projects.
     | --- | --- |
     | Scheduled publication | 30 s |
     | Lapse | 1 min |
-    | Reminders | 1 min |
-    | Count reconciliation and owner alert on drift (NFR-2) | daily |
+    | Reminders (owner: Booking) | 1 min |
+    | Count reconciliation of slots **and ledgers**, owner alert on drift (NFR-2) | daily |
     | `codeLive` clearing | daily |
     | Retention purge | daily, once Q3 is answered |
 
+  - **Reminders are owned by Booking.** The job selects `confirmed` bookings with
+    `slotStartsAt − leadTime(now) ≤ now < slotStartsAt` and
+    `confirmedAt < slotStartsAt − leadTime`, stages `BookingReminderDue { bookingId }`
+    for each and records `reminderStagedAt` on the Booking (written with the Booking
+    guard). Notifications only sends. Booking reads the lead time through
+    `GetTenantSettingsQuery` on every run, so a changed lead time applies to unsent
+    reminders (FR-29).
   - OTP challenges, sessions and known devices expire through **TTL indexes**, not
     jobs.
-  - A free external uptime monitor calls `/health` every 5 minutes, which keeps the
-    service awake.
+  - A Grafana Cloud Synthetics check (free tier, 100k checks a month) calls `/health`
+    every 5 minutes, which keeps the service awake and alerts on downtime.
   - Epic 1 proves that a timer fires through quiet hours. If it doesn't, an external
     cron calls protected `/internal/jobs/{job}` endpoints, and the job code stays the
     same.
@@ -341,6 +448,8 @@ their module projects.
   - **Session lookups** are cached in process for at most 30 s. Revoking or disabling
     evicts the entry at once, so FR-38's "within 1 minute" holds without a database read
     on every request.
+  - Any change to a staff account's roles or enabled state deletes that account's
+    sessions in the same transaction and evicts them from the cache.
   - **CSRF:** Angular's XSRF header is validated by ASP.NET Core antiforgery on every
     unsafe method.
   - **Rate limits** (NFR-6) use the built-in ASP.NET Core rate limiter, in memory, per IP
@@ -371,7 +480,11 @@ their module projects.
     | 422 | Every business refusal (`slot_full`, `limit_reached`, `already_booked`, `otp_budget_exhausted`, ...) |
     | 429 | Rate limits only (NFR-6) |
 
-  - Error codes are defined once, in a `{Module}Errors` class. The API never returns
+  - Error codes are defined once, in a `{Module}Errors` class, and are globally unique.
+    Shared codes (`not_found`, `validation_failed`, `concurrency_conflict`,
+    `rate_limited`) live in `SharedKernel.Application.CommonErrors`; a fitness test
+    fails on a duplicate code. `not_found` is always 404 and `validation_failed` always
+    400, even where the PRD lists them among refusal reasons. The API never returns
     user-facing text: Angular maps `errors.{code}` to bn, en and ar.
   - **Routes:** controllers in `SlotBook.Api/Controllers/{Module}/` under `/api/...`.
     Kebab-case plural nouns. No tenant in any route (AD-5). JSON in camelCase, enums as
@@ -379,7 +492,9 @@ their module projects.
   - There is **no URL versioning.** API changes are additive, and a removal follows
     expand / contract.
   - The built-in OpenAPI document is generated and committed. CI fails when it's stale.
-    Angular's API types are generated from it.
+    Angular's API types are generated from it into `shared/api/generated/`, and both
+    areas import only from there. Generated files are never hand-edited; on a merge
+    conflict the agent regenerates both from the merged code.
 
 ### AD-14 — Time
 
@@ -388,13 +503,21 @@ their module projects.
   limits, lapse and reminders.
 - **Rule:**
   - Instants are stored as UTC BSON dates.
-  - The tenant stores an IANA time-zone id. A Slot also stores its local date
-    (`yyyy-MM-dd`) for day queries.
+  - The tenant stores an IANA time-zone id.
+  - **Week identity** is the natural key `(tenantId, weekStartDate)`, where
+    `weekStartDate` is the local `yyyy-MM-dd` of the tenant's week start day; unique
+    index `ux_weeks_tenantId_weekStartDate`. Creating a week is get-or-create, re-run on
+    `DuplicateKey`. Every per-week count (the ledger's) is keyed by `weekStartDate`.
+  - **Slot shape:** `localDate`, `localStart` and `localEnd` (`HH:mm`) are the source of
+    truth. `startsAt` / `endsAt` (UTC) are computed in the domain from the tenant's zone
+    at creation and never edited. Copy-last-week copies the local fields and recomputes
+    UTC.
   - All "now / today / a day / this week" logic goes through one clock service, built
     on `TimeProvider`, in `SharedKernel.Application`. Code never calls `DateTime.Now` or
     `DateTime.UtcNow`; an analyzer or fitness test bans them.
-  - The API exchanges ISO 8601 with offset. The UI renders in the **tenant's** time
-    zone.
+  - The API returns instants as ISO 8601 with offset. Staff-entered schedule data comes
+    **in** as local date + local time without offset; the server applies the tenant's
+    zone. The UI renders in the **tenant's** time zone, never the device's.
 
 ### AD-15 — Frontend structure
 
@@ -454,7 +577,17 @@ their module projects.
   - **Demo environment:** a Render static site plus a web service, Atlas Free, CloudAMQP
     Little Lemur and Grafana Cloud Free, all declared in a Render Blueprint
     (`render.yaml`). Production comes later, from the same blueprint.
-  - The static site rewrites `/api/*` to the web service.
+  - The API deploys as a **Docker** web service (Render has no native .NET runtime).
+  - The static site rewrites `/api/*` to the web service, so the browser sees one
+    origin. Render doesn't document whether a rewrite passes POST bodies, headers and
+    `Set-Cookie`, so **epic 1 proves it**. Fallback: a custom domain with the API on a
+    subdomain of the same site, because `onrender.com` is a public suffix and
+    `SameSite=Strict` cookies don't cross two `onrender.com` subdomains.
+  - **Epic 1 also proves** that the unit of work and MassTransit's outbox share one
+    MongoDB session and commit together, and that multi-document transactions work on
+    Atlas Free.
+  - Atlas Free caps transfer at 10 GB in and 10 GB out per rolling 7 days, beside the
+    100 ops/s cap; the Grafana dashboard tracks both.
   - Options are bound and validated at startup, and missing required configuration fails
     startup.
   - Secrets live only in Render environment groups, GitHub secrets, user secrets or
@@ -479,7 +612,7 @@ their module projects.
     - `SharedKernel.UnitTests`;
     - `SlotBook.IntegrationTests`;
     - `SlotBook.ArchitectureTests`, which holds the fitness tests named in AD-2, AD-3,
-      AD-5, AD-12, AD-14 and AD-17 and runs on every build.
+      AD-5, AD-12, AD-13, AD-14 and AD-17 and runs on every build.
 
 ## Consistency Conventions
 
@@ -489,37 +622,41 @@ their module projects.
 | Module and folder names | PascalCase module names from the module table. Controllers in `SlotBook.Api/Controllers/{Module}/` |
 | Commands, queries, handlers, validators | `{Verb}{Noun}Command`, `Get{Noun}Query`, `{Name}Handler`, `{Name}Validator`, one use case per folder: `Application/{UseCase}/`. Public cross-module queries live in `{Module}.Contracts` |
 | Repositories | `I{Aggregate}WriteRepository` (load and save, commands only) and `I{Aggregate}ReadRepository` (projections, queries only), declared next to the aggregate |
-| Integration events | Past tense, no suffix (`BookingConfirmed`, `PatientErased`), in the publisher's `{Module}.Contracts` |
+| Integration events | Past tense, no suffix (`BookingConfirmed`, `PatientErased`), in the publisher's `{Module}.Contracts`, derived from `TenantEvent`, ids and non-personal facts only (AD-10) |
+| Audit actions | `"{module}.{noun}.{verb}"` constants in `{Module}AuditActions` (AD-3) |
 | Collections and indexes | Collections snake_case plural. Index names `ux_{collection}_{fields}` (unique) and `ix_{collection}_{fields}` |
 | Ids and JSON | Guid v7 as a string in JSON. camelCase properties. Enums as strings |
 | Dates | UTC instants in ISO 8601 with offset. Local dates `yyyy-MM-dd`. Display always in the tenant's time zone |
 | Errors | Problem details + `code` + `traceId` (AD-13). Translation key `errors.{code}` |
-| Mobile numbers | E.164 in storage. ASCII digits on output. Masked (last 3 digits) everywhere except the patient's own pages and the patient detail view (NFR-9) |
+| Mobile numbers | One `MobileNumber` value object (AD-3). E.164 in storage. ASCII digits on output. Masked (last 3 digits) everywhere except the patient's own pages and the patient detail view (NFR-9) |
 | Text limits | Counted in code points after NFC. Validated in the application, never by the database |
 | Logging | `[LoggerMessage]` only. No personal data (AD-17) |
 | Configuration | Options classes validated at startup. One section per module |
 
 ## Stack
 
+All rows checked against NuGet, npm or the vendor's docs on 2026-10-10
+(`reviews/review-tech-currency.md` has the evidence links).
+
 | Name | Version |
 | --- | --- |
-| .NET SDK (ADR-0003) | 10.0.100, rollForward latestFeature |
+| .NET SDK (ADR-0003) | floor 10.0.100, rollForward latestFeature (current 10.0.401, runtime 10.0.12) |
 | ASP.NET Core (controllers, rate limiter, antiforgery, OpenAPI) | 10.0 |
-| MongoDB.Driver | 3.12.0 |
+| MongoDB.Driver | 3.12.0, pinned together with MassTransit.MongoDb |
 | MongoDB server (Atlas Free) | 8.0 |
-| MassTransit + MassTransit.RabbitMQ + MassTransit.MongoDb | 8.5.x (latest 8.5 patch at pin time; v9 is commercial) |
+| MassTransit + MassTransit.RabbitMQ + MassTransit.MongoDb | 8.5.11 (v9 is commercial; v8 end of support "end of 2026" is unofficial). 8.5.11 requires MongoDB.Driver ≥ 3.12.0 |
 | RabbitMQ (CloudAMQP Little Lemur) | provider-managed 3.x/4.x; confirmed in epic 1 |
-| Aspire (AppHost, ServiceDefaults, JavaScript app hosting) | 13.4 |
+| Aspire (AppHost, ServiceDefaults) | 13.6.1. Angular runs through `AddViteApp` with `PORT` (`AddNpmApp` was removed in Aspire 13) |
 | OpenTelemetry .NET (via ServiceDefaults) | 1.x current at pin time |
 | xUnit v3 + Shouldly on Microsoft.Testing.Platform (ADR-0006) | as pinned in the repo |
-| NetArchTest.Rules | 1.3.x |
-| FluentValidation | 12.1.x (Apache 2.0) |
+| ArchUnitNET + its xUnit v3 adapter (fitness tests) | 0.13.4. Replaces NetArchTest.Rules, last released 2021, netstandard2.0 only |
+| FluentValidation | 12.2.0 (Apache 2.0) |
 | Angular (ADR-0005, ADR-0006) | 22.2 |
 | TypeScript | 6.0 |
 | Vitest | 5.x |
-| Transloco (`@jsverse/transloco`) | 7.6.1 (Angular 22 peer support checked in epic 2) |
-| Render (web service + static site, free) | platform, no version |
-| Grafana Cloud (free, OTLP) | platform, no version |
+| Transloco (`@jsverse/transloco`) | 8.4.0 (peer range Angular ≥ 16 accepts 22) |
+| Render (Docker web service + static site, free) | platform, no version |
+| Grafana Cloud (free: OTLP, Synthetics for the uptime check) | platform, no version |
 
 ## Structural Seed
 
@@ -534,7 +671,7 @@ flowchart LR
     Web -->|OTLP| Grafana["Grafana Cloud Free"]
     Web -->|"SMS (development channel in demo)"| Sms["SMS provider<br/>(clinic later)"]
     Web -->|"Web Push (VAPID)"| Push["Browser push services"]
-    Uptime["Free uptime monitor"] -->|"GET /health every 5 min"| Web
+    Uptime["Grafana Synthetics check"] -->|"GET /health every 5 min"| Web
     GH["GitHub Actions<br/>ci-ok on main"] -->|deploy| Web
     GH -->|deploy| Static
 ```
@@ -645,6 +782,6 @@ render.yaml          # Render Blueprint: demo environment
 | Chat transport | Fast-follow; the default is polling at about 125 chats a day | Epic 12 inception |
 | Booking path as a single conditional update | Only if the epic 5 load test misses NFR-13 under Atlas Free's 100 ops/s; the AD-6 table stays | The epic 5 load test |
 | MassTransit after v8 support ends | Unsupported v8 still runs; types stay in Infrastructure | End of 2026, or the first sale |
-| Append-only audit enforced by a database role | Depends on whether Atlas Free allows a collection-scoped insert+find role; until then the audit repository exposes insert and find only, checked by a fitness test | Epic 2 |
+| Append-only audit enforced by a database role | Atlas Free doesn't support `createRole` from a client; a collection-scoped insert+find role must come from the Atlas API, if Free allows it at all; until then the audit repository exposes insert and find only, checked by a fitness test | Epic 2 |
 | Passkeys for staff, Kafka event log, Azure hosting, a distributed cache, live availability updates | Declined or parked by the developer; none is needed by v1 | The developer asks |
 | Where the pipeline's worker and dashboard live | Not product architecture; the default is `sandbox/` in this repo | Pipeline work is scheduled |
