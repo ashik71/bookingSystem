@@ -3,8 +3,8 @@
 > **Every interactive session reads this file first and updates it last.** It is the
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
-**Last session:** 009 · 2026-10-10
-**Next session:** 010: extract the developer's reference architecture (generic patterns only), then `bmad-architecture` (Render + MongoDB are inputs; write their ADRs; settle the cross-epic decisions in the initiative Notes)
+**Last session:** 010 · 2026-10-10
+**Next session:** 011: finish the architecture review (remaining reviewers, fixes), mark the spine final, build the team slide deck, then re-sequence the epics for the demo goal
 
 ---
 
@@ -19,12 +19,13 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 
 | Track | Status |
 |---|---|
-| **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · Architecture ⬜ · `bmad-ticket` GitHub store configured ✅ |
+| **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · **Architecture 🟡** draft in `architecture-slotbook/` (AD-1–AD-19 + threat model), under review · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix used on 3 real stories) · models per mode ✅ · CI ✅ · ⬜ `review` mode, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write, classic PAT with `workflow` scope) ✅ · ruleset `protect-main` ✅ (1 approval + required `ci-ok`, bound to GitHub Actions) · CI `ci.yml` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
 | **Code** | Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
 | **Blocked on** | Nothing |
-| **Sequencing** | Architecture next. Then publish the epics and incept epic 1 (deploy platform, no screens). `bmad-ux` before epic 2 is incepted. Build order: `_bmad-output/initiative-booking-management/tickets.toml` |
+| **Goal (010)** | **Near-term target is a team demo**; clinic launch parked, not dropped. $0 still holds. Epic order and done line need re-sequencing |
+| **Sequencing** | Finish architecture. Then publish the epics and incept epic 1 (deploy platform, no screens). `bmad-ux` before epic 2 is incepted. Build order: `_bmad-output/initiative-booking-management/tickets.toml` |
 
 ## Decisions made
 
@@ -36,12 +37,15 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | 0006 | Monorepo, deploy-independent `src/backend` (tests in `src/backend/tests`) + `src/frontend`; xUnit v3 + Shouldly on MTP; Angular 22 + Vitest | Accepted |
 | 0007 | Backend code style: the developer's reference conventions, enforced as build errors (StyleCop, Meziantou, VS Threading) | Accepted |
 
-| — | **Database: MongoDB** (developer, 2026-10-10) | ADR to write in 010 |
-| — | **Hosting: Render, for now**; Azure later as its own epic (developer, 2026-10-10) | ADR to write in 010 |
-| — | **Messaging: RabbitMQ through MassTransit; Kafka skipped for now** (developer, 2026-10-10) | ADR to write in 010 |
+| 0002 | Modular monolith, one deployable on one free Render web service | Accepted |
+| 0008 | MongoDB on Atlas Free | Accepted |
+| 0009 | Hosting on Render free tier; Azure later | Accepted |
+| 0010 | RabbitMQ via MassTransit v8 (Apache 2.0); Kafka parked | Accepted |
+| 0011 | Shared collections; tenant from session, `X-Tenant` on anonymous calls; no tenant in routes | Accepted |
+| 0012 | Concurrency: one invariant, one guard document | Accepted |
+| 0013 | Backend module structure: `Modules/{Module}` + Contracts, 7 modules | Accepted |
+| 0014 | Staff password + TOTP; server-side sessions for both audiences | Accepted |
 | — | **Go-live line:** epics 1–10 before the first real booking; 11 announcements + 12 chat fast-follow; every epic ships to a pre-launch environment from epic 1 (developer, 2026-10-10) | Initiative Notes |
-
-*ADR-0002 is reserved for modular monolith vs microservices (architecture step).*
 
 ## Decisions deliberately still open
 
@@ -50,14 +54,7 @@ Don't let a session assume an answer to any of these.
 | Question | Blocks | Target |
 |---|---|---|
 | Data retention period (Q3), uptime expectation (Q5), privacy notice text | Privacy policy, ops | Before launch |
-| Staff sign-in method (Q4; MFA for all staff is decided) | Staff auth epic | Architecture |
-| Threat model (NFR-8) | Security-sensitive epics | Architecture |
-| Bounded contexts; is Slot inside the Booking aggregate? How is the cross-slot booking limit guarded? | Concurrency design | Architecture |
-| Multi-tenancy isolation model in MongoDB (database per tenant, or shared collections with a tenant key) | First collection | Architecture, **before the first collection** |
-| Data access (official driver or EF Core provider), schema changes; MongoDB host and tier (assumed Atlas free: no backups, throughput cap, custom roles unknown) | Epics 1, 2 | Architecture |
-| Background jobs on Render's free tier, where services sleep when idle | Epics 3, 5, 6, 10 | Architecture; epic 1 proves a timer fires |
-| Free SMS quota for local numbers (Q1)? Live OTP is SMS only either way; it sets pre-sale cost and the default daily OTP budget | SMS provider | Architecture |
-| MassTransit version: v8 (open source; end of support reported as end of 2026, unofficial) or a commercial licence; RabbitMQ host (free CloudAMQP tier assumed) | Epic 6 | Architecture |
+| Free SMS quota for local numbers (Q1)? Live OTP is SMS only either way; it sets pre-sale cost and the default daily OTP budget | SMS provider | Clinic launch (spine Deferred; demo uses the dev channel) |
 | Where the worker and dashboard live (default: `sandbox/` here, dashboard as its own epic) | Pipeline build | Architecture |
 
 ## Open threads
@@ -103,7 +100,8 @@ Don't let a session assume an answer to any of these.
 | 004 | Write the brief entry in `docs/learning/LEARNINGS.md` | Open |
 | 005 | `colima stop` after each sandbox session | Habit |
 | 006 | Upgrade Node on the Mac to ≥ 24.15 (Angular 22 requirement) | Open |
-| 009 | Note the deciding reason for MongoDB and for Render, for their ADRs in 010 | Open |
+| 009 | Note the deciding reason for MongoDB and for Render, for their ADRs in 010 | Done (010) |
+| 010 | Review the architecture document after the review fixes | Open |
 
 ---
 
