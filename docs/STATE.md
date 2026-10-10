@@ -4,7 +4,7 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 010 · 2026-10-10
-**Next session:** 011: finish the architecture review (remaining reviewers, fixes), mark the spine final, build the team slide deck, then re-sequence the epics for the demo goal
+**Next session:** 011: developer reviews the spine (AD-1–AD-22) and answers the custom-domain question; mark it final; build the team slide deck; then correct-course (epic envelopes + 3 PRD changes) for the demo goal
 
 ---
 
@@ -19,7 +19,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 
 | Track | Status |
 |---|---|
-| **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · **Architecture 🟡** draft in `architecture-slotbook/` (AD-1–AD-19 + threat model), under review · `bmad-ticket` GitHub store configured ✅ |
+| **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · **Architecture 🟡** in `architecture-slotbook/`: AD-1–AD-22 + threat model; all 5 reviews applied, awaiting the developer's read before `final` · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix used on 3 real stories) · models per mode ✅ · CI ✅ · ⬜ `review` mode, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write, classic PAT with `workflow` scope) ✅ · ruleset `protect-main` ✅ (1 approval + required `ci-ok`, bound to GitHub Actions) · CI `ci.yml` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
 | **Code** | Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
@@ -101,7 +101,8 @@ Don't let a session assume an answer to any of these.
 | 005 | `colima stop` after each sandbox session | Habit |
 | 006 | Upgrade Node on the Mac to ≥ 24.15 (Angular 22 requirement) | Open |
 | 009 | Note the deciding reason for MongoDB and for Render, for their ADRs in 010 | Done (010) |
-| 010 | Review the architecture document after the review fixes | Open |
+| 010 | Read the architecture document (AD-1–AD-22, Epic 1 proofs) and approve or correct it | Open |
+| 010 | Custom-domain fallback: own a domain, or accept ~$10/year as an NFR-16 exception? | Open |
 
 ---
 
