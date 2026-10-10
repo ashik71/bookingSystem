@@ -129,7 +129,8 @@ their module projects.
     - An alert's `_id` is derived from `(tenantId, kind, dedupKey)`; a duplicate key
       means "already raised" (AD-8). Dedup keys: OTP budget → the tenant's local date;
       count drift → slot id + local date; notification failure → notification id;
-      erasure incomplete → patient id; SMS quota exhausted → the tenant's local date. Alert kinds are an enum in `Audit.Contracts`. The
+      erasure incomplete → patient id; `sms_unavailable` (provider failure or quota
+      refusal, raised by `ISmsChannel`) → the tenant's local date. Alert kinds are an enum in `Audit.Contracts`. The
       writer also logs every alert through one `[LoggerMessage]` (FR-45).
     - **Audit entry contract:** `AuditEntry { tenantId, at (UTC), actor { kind:
       staff|patient|system, id?, roles[] }, action, target { type, id }, details }`.
@@ -142,8 +143,15 @@ their module projects.
   - **Reads across modules:** dispatch a public query declared in the owning module's
     `{Module}.Contracts`. The owner handles it. A module never touches another
     module's repositories or collections. Queries that serve lists are batch-shaped
-    (`GetStaffDisplayNamesQuery(ids[])`) and the caller may cache them in process for
-    60 s. A module never copies another module's **mutable** display data (names, texts)
+    (`GetStaffDisplayNamesQuery(ids[])`). Callers may cache **display-name** queries in
+    process for 60 s, and nothing else: `GetTenantSettingsQuery` is never cached by a
+    caller (FR-39 "from the moment it is saved"); if Tenancy caches it, saving settings
+    evicts it.
+  - **Visibility and masking are applied by the owning module** inside its public
+    queries and endpoints, given the viewer (staff id and roles): FR-16's reason and
+    note visibility, and NFR-9 masking. Callers never receive a field they may not show.
+    The API never returns a full mobile number except on the patient's own endpoints,
+    the audited detail view and the CSV export. The cross-patient suite asserts this. A module never copies another module's **mutable** display data (names, texts)
     into its own documents; immutable facts (ids, dates) may be copied.
   - **Writes across modules in one transaction:** the owner exposes a **public command**
     in its `.Contracts` (for example `EnsurePatientCommand(mobileNumber) → patientId`).
@@ -188,7 +196,9 @@ their module projects.
     commits, and then returns `Result.Refused(code)`, which the API maps to 422 (or 429).
     Refusals decided outside a handler (authorization, rate limiting) are recorded by one
     host-level `IRefusalRecorder` in `SlotBook.Api`, which dispatches a
-    `RecordRefusalCommand` to Audit in its own transaction. Test: 6 parallel wrong OTPs
+    `RecordRefusalCommand` to Audit in its own transaction. Its entry `_id` is derived
+    from (tenant, actor, action, UTC minute), so a refusal flood writes one entry per
+    actor per minute (FR-24) and never amplifies writes against the Atlas budget. Test: 6 parallel wrong OTPs
     for one challenge leave it invalidated.
   - Only a command handler loads aggregates through a write repository, calls their
     methods and commits the unit of work.
@@ -206,7 +216,8 @@ their module projects.
     challenge with the OTP **hash only**, then sends the plaintext synchronously through
     `ISmsChannel` (in `SharedKernel.Application`, implemented by Notifications). The
     plaintext never reaches MongoDB, the outbox or the broker (FR-2). The patient's
-    "resend" is the retry.
+    "resend" is the retry. A failed OTP send keeps its budget and limit counts and
+    answers 503 `sms_unavailable`, which Angular maps to the NFR-17 message.
 
 ### AD-5 — Tenant isolation: shared collections, tenant from the session
 
@@ -236,8 +247,16 @@ their module projects.
     reads are slug → tenant id and the active-tenant list, both cached in process.
     Settings writes run under the tenant's own scope. The only global writes are tenant
     setup, leases and migrations.
-  - A tenant is set up by a one-off host CLI command (`SlotBook.Api seed-tenant`), never
-    an API endpoint. It creates the Tenant, its first owner and its StaffRoster.
+  - A tenant is set up by a one-off, idempotent host CLI command
+    (`SlotBook.Api seed-tenant`) from configuration (slug, country, IANA zone, week
+    start day, the first owner's login name and a one-time password), never an API
+    endpoint. It creates the Tenant, its first owner and its StaffRoster. The owner's
+    first sign-in forces TOTP enrolment. Integration tests use the same seeder code for
+    tenant B.
+  - One anonymous `[TenantFromHeader]` endpoint returns the **public tenant profile**:
+    default language, publication day, home warning, privacy notice, ticket prefix and
+    chat response time. It never returns limits, the OTP budget or other internal
+    settings.
   - Every unique index begins with `tenantId`.
   - Every aggregate is either tenant-owned or carries an explicit `[GlobalAggregate]`
     marker.
@@ -291,8 +310,14 @@ their module projects.
     `snapshot`.
   - A version mismatch, a write conflict, or an error labelled
     `TransientTransactionError` or `UnknownTransactionCommitResult` **re-runs the whole
-    handler**, with fresh loads, up to 5 attempts with jittered backoff. Once the
-    retries run out, the API answers 409 `concurrency_conflict`.
+    handler**, with fresh loads and jittered backoff. The bound is a **time budget of
+    3 s**, not an attempt count, so a hot guard document (a full slot at publication,
+    the tenant's OtpBudget) drains instead of failing. A re-run that finds the refusal
+    condition returns that refusal (`slot_full`), never 409. Only when the time budget
+    runs out does the API answer 409 `concurrency_conflict`; the NFR-1 suites assert
+    zero 409 responses (FR-15, SM-1).
+  - A version-checked write of the guard document is how NFR-1's "enforced by the data
+    store at commit time" is met. An unguarded read-then-write is the forbidden case.
   - Handlers never call the MongoDB driver or `IMongoCollection` directly.
   - Every row of AD-6 has a concurrency test against a real replica set (NFR-1's list).
   - **Bulk actions** (bulk cancel, FR-11) are N independent commands, one transaction
@@ -478,7 +503,12 @@ their module projects.
     unsafe method.
   - **Rate limits** (NFR-6) use the built-in ASP.NET Core rate limiter, in memory. That
     is valid only while AD-1 holds. Partition keys: IP, E.164 number, staff account id,
-    patient id. Every 429 carries `Retry-After`. Limits set in an FR follow the FR; the
+    patient id. Every 429 carries `Retry-After`. "Per hour" is a sliding window of at
+    least 6 segments; "a day" is a calendar day in the tenant's zone.
+  - **Client IP:** epic 1 proves which header carries the real client IP through the
+    rewrite. The API uses ForwardedHeaders trusting only that one hop. Every per-IP
+    limit and log reads one `IClientIp`. If the IP doesn't survive the rewrite, the
+    AD-18 custom-domain fallback is required before epic 4. Limits set in an FR follow the FR; the
     ones NFR-6 leaves to architecture are configuration with these defaults:
 
     | Endpoint | Default |
@@ -487,15 +517,21 @@ their module projects.
     | Staff sign-in | 10 per 15 minutes per IP |
     | OTP verify | 20 per hour per IP (on top of FR-2's 5 per challenge) |
 
-  - **Daily business quotas** (fraud reports, OTP budget) are counted in MongoDB, never
-    in the in-memory limiter, because a restart would reset them.
+  - **Per-number and daily limits** (FR-3's OTP sends per number, FR-32's fraud reports
+    per day, the OTP budget) are counted from stored documents, never in the in-memory
+    limiter, because a restart would reset them. They answer 429 with their own codes.
   - **Fresh OTP:** an action marked `[RequiresFreshOtp]` (Delete my data, FR-44) needs
     an OTP verified for the session's own number within the last 5 minutes, recorded on
     the session. A known-device skip never sets it (FR-4).
-  - Anonymous availability reads are served from a 5-second in-process cache per tenant
-    and week. That protects the Atlas Free operation budget and NFR-13; a booking
-    re-checks every rule at commit.
-  - **Security headers:** HSTS, and a CSP of `default-src 'self'`. Angular code never
+  - Anonymous availability reads are served from an in-process cache per tenant and
+    week. That protects the Atlas Free operation budget and NFR-13. Every command that
+    writes a Slot or a Week evicts that entry after commit (FR-9, FR-13); a 5-second TTL
+    is only the backstop. A booking re-checks every rule at commit.
+  - **Security headers:** the static site's headers in `render.yaml` set HSTS and the
+    document CSP: `default-src 'self'`; `style-src 'self'` plus `'unsafe-inline'` for
+    styles only, never for scripts; Angular's `inlineCritical` is off. The API sends
+    `default-src 'none'` on its responses. Epic 1 proves the deployed app loads with
+    zero CSP violations. Angular code never
     calls `bypassSecurityTrust*` or binds user text to `innerHTML` (NFR-7); a lint rule
     enforces this.
 
@@ -507,7 +543,9 @@ their module projects.
 - **Rule:**
   - Refusals may carry **typed extension members**, declared next to the error code and
     present in the OpenAPI document (`slot_full` → `suggestedSlotIds[]` with local
-    times; 429 → `retryAfterSeconds` plus the header).
+    times; 429 → `retryAfterSeconds` plus the header). Values a message interpolates
+    (`limit`, `free`, `taken`) are typed extension members too. A 400 carries
+    `errors: { field: [code] }`, keyed by the camelCase field name.
   - Errors are RFC 9457 problem details. The body carries a stable snake_case `code`
     and the `traceId`.
 
@@ -572,7 +610,10 @@ their module projects.
     Neither area imports the other, and shared UI lives in `shared/`.
   - A bundle budget in `angular.json` caps the patient area's initial load (NFR-12).
   - The **PWA service worker** serves Web Push (FR-27) and the offline view of the
-    ticket.
+    ticket. It caches only the ticket response for active bookings; sign-out, sign-out
+    everywhere (on next load) and erasure clear it. No other personal API response is
+    cached.
+  - Every patient page has an e2e test at 360 px with an axe scan (AD-19, NFR-15).
   - API calls go to the same origin, under `/api`.
 
 ### AD-16 — Languages and right-to-left
@@ -584,6 +625,11 @@ their module projects.
   - Built-in strings use a runtime translation library (Transloco), with JSON per
     language and keys namespaced by feature (`booking.confirm.title`). CI fails on a key
     missing in bn, en or ar.
+  - **Server-generated user text** (SMS, push, the OTP SMS) lives only in Notifications
+    as `.resx` per language, rendered by one `IMessageRenderer(kind, language, model)`
+    (interface in `SharedKernel.Application`) that formats dates in the tenant's zone
+    with ASCII digits. An architecture test fails on a key missing in bn, en or ar. Each
+    template states its SMS segment budget.
   - Styles use CSS logical properties only. `margin-left`, `padding-right`, `left:` and
     similar are banned by a stylelint rule.
   - Ticket codes, mobile numbers and times are wrapped as left-to-right. Digits display
@@ -606,6 +652,11 @@ their module projects.
     and HTTP instrumentation never records bodies or query strings. The integration
     suite scans the captured logs and spans for these.
   - `/health` (liveness) and `/health/ready` (MongoDB and RabbitMQ) both exist.
+  - **The development channel** (FR-27) writes OTPs and notifications only to a
+    `dev_outbox` collection, never to logs. Its only reader is an owner-only
+    `/staff/dev-outbox` page that exists only when the development channel is
+    configured. It is the one exemption from FR-6 and from this AD's OTP rule, because
+    no real patient exists in an environment that may use it (AD-18).
 
 ### AD-18 — Environments, configuration and deploy
 
@@ -630,6 +681,8 @@ their module projects.
   - Atlas Free caps transfer at 10 GB in and 10 GB out per rolling 7 days, beside the
     100 ops/s cap; the Grafana dashboard tracks both.
   - Environments are `Development`, `Demo` and `Production` (`ASPNETCORE_ENVIRONMENT`).
+    `render.yaml` sets it explicitly for every service; an unset value means
+    `Production` in ASP.NET Core, so the demo would refuse to start.
     `Production` with the development SMS channel configured fails startup (FR-27);
     `Demo` may use it. An integration test proves it.
   - `render.yaml` sets `healthCheckPath: /health/ready`, so a failed deploy leaves the
@@ -838,7 +891,7 @@ render.yaml          # Render Blueprint: demo environment
 | Chat transport | Fast-follow; the default is polling at about 125 chats a day | Epic 12 inception |
 | Booking path as a single conditional update | Only if the epic 5 load test misses NFR-13 under Atlas Free's 100 ops/s; the AD-6 table stays | The epic 5 load test |
 | MassTransit after v8 support ends | Unsupported v8 still runs; types stay in Infrastructure | End of 2026, or the first sale |
-| Append-only audit enforced by a database role | Atlas Free doesn't support `createRole` from a client; a collection-scoped insert+find role must come from the Atlas API, if Free allows it at all; until then the audit repository exposes insert and find only, checked by a fitness test | Epic 2 |
+| Append-only audit enforced by a database role | Atlas Free doesn't support `createRole` from a client; a collection-scoped insert+find role must come from the Atlas API, if Free allows it at all; until then the audit repository exposes insert and find only, checked by a fitness test. If Free can't scope the role, record a PRD change: repository + architecture test on the demo tier, database-level enforcement before the clinic launch | Epic 2 |
 | Passkeys for staff, Kafka event log, Azure hosting, a distributed cache, live availability updates | Declined or parked by the developer; none is needed by v1 | The developer asks |
-| Announcement image storage (≤ 1 MB, JPEG/PNG/WebP) | Epic 11 is fast-follow; Render's disk is ephemeral and Atlas Free holds 0.5 GB, so it needs a $0 choice (SC-7) plus upload validation in the threat model | Epic 11 inception |
+| Announcement image storage (≤ 1 MB, JPEG/PNG/WebP) | Epic 11 is fast-follow; Render's disk is ephemeral and Atlas Free holds 0.5 GB, so it needs a $0 choice (SC-7). Default candidate: MongoDB GridFS, tenant-filtered, server-side decode and re-encode (strips metadata, enforces 1 MB and type), served with `nosniff` | Epic 11 inception |
 | Where the pipeline's worker and dashboard live | Not product architecture; the default is `sandbox/` in this repo | Pipeline work is scheduled |
