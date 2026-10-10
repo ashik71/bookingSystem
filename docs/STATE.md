@@ -4,7 +4,7 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 009 · 2026-10-10
-**Next session:** 010: `bmad-architecture` (Render + MongoDB are inputs; write their ADRs; settle the cross-epic decisions in the initiative Notes)
+**Next session:** 010: extract the developer's reference architecture (generic patterns only), then `bmad-architecture` (Render + MongoDB are inputs; write their ADRs; settle the cross-epic decisions in the initiative Notes)
 
 ---
 
@@ -75,6 +75,14 @@ Don't let a session assume an answer to any of these.
   the initiative file. The cross-epic decisions for architecture are listed in the
   initiative Notes
 - **Azure (focus area 1) is parked** while hosting is on Render
+- **Architecture blueprint (009):** the architecture follows the developer's reference
+  architecture, an external client repo: Clean Architecture (Domain, Application,
+  Infrastructure, Api, event contracts; aggregates; feature folders aligned across
+  layers) and event-driven (integration events, MongoDB, inbox and outbox patterns).
+  Firewall: extract generic patterns into a SlotBook input file; never copy its code,
+  names or packages. Its company-private shared libraries can't be used, so SlotBook
+  builds its own equivalents. ADR-0006 (test stack) and ADR-0007 (code style) win where
+  they differ
 - **Working style (008):** apply standard doctor–patient booking conventions by
   default; don't ask the developer about edge cases those conventions already settle
 - **Git history is not scrubbed (developer's decision, 2026-10-09).** Early commits
