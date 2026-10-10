@@ -6,6 +6,41 @@
 **Last session:** 010 · 2026-10-10
 **Next session:** 011: developer reviews the spine (AD-1–AD-22) and answers the custom-domain question; mark it final; build the team slide deck; then correct-course (epic envelopes + 3 PRD changes) for the demo goal
 
+## Handoff to session 011
+
+**Where we stopped:** the architecture spine is drafted and every review is applied
+(`_bmad-output/initiative-booking-management/architecture-slotbook/`). All five reviews
+are in `reviews/`. Everything is committed (last commit `b87c880`). The spine is still
+`status: draft`, waiting only for the developer's read.
+
+**Developer, before the session (~1 hour):**
+1. Read `architecture-slotbook.md` in this order:
+   - AD-6 and AD-7: guard documents, the retry time budget. Your SQL weak spot; read closely.
+   - AD-20, AD-21, AD-22: new since the last read (audit and alerts, notifications, rate limits).
+   - **Epic 1 proofs**: what must work on the free tiers first.
+   - AD-5: the list of global collections and reads.
+   - Skim the rest.
+
+   For each rule, ask: *can I reject a PR on it?* and *do I disagree?*
+2. Answer: **do you own a domain?** It's needed only if the `/api` rewrite proof fails.
+   Otherwise, is ~$10/year an accepted exception to NFR-16 ($0)?
+3. Bring either "approved" or a list of rules to change.
+
+**Claude, in session 011, in order:**
+1. Apply the developer's corrections, set the spine to `status: final`, record it in
+   the memlog, and commit.
+2. Build the **team slide deck** from the final spine: context, containers, deployment,
+   the booking sequence, tenancy and the messaging flow. Run Artifact `quickstart`
+   with intent `slides` first.
+3. **Correct-course** (`bmad-correct-course` or `bmad-ticket`):
+   - update the epic envelopes listed in `reviews/review-reconcile-epics.md`
+     ("Epic-envelope updates");
+   - record the PRD changes: FR-39 (categories retire-only), FR-42 (append-only on the
+     demo tier if Atlas Free can't scope a role), FR-2/FR-6 (development-outbox
+     exemption);
+   - re-sequence the epics for the team-demo goal.
+4. Then publish the epics to GitHub and incept epic 1.
+
 ---
 
 ## Goal
