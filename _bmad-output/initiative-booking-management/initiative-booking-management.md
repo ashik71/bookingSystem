@@ -80,7 +80,7 @@ tenant (2). The first demo comes at the end of epic 5.
 - Touch point: the MongoDB host — provisioned and configured; owner: epic-deploy-platform
 - Touch point: the SMS provider — configured; owner: epic-notifications (the development channel: epic-patient-sign-in)
 - Touch point: the browser push service (Web Push) — configured; owner: epic-notifications
-- Touch point: the message broker — hosted and configured; owner: epic-notifications
+- Touch point: RabbitMQ (hosted broker) — configured; owner: epic-notifications
 - Touch point: file storage for announcement images — owner: epic-announcements
 - Touch point: the real-time transport for chat — owner: epic-chat
 - Touch point: DNS and the official booking address — owner: epic-launch
@@ -111,6 +111,11 @@ tenant (2). The first demo comes at the end of epic 5.
 - Decision: the database is **MongoDB** (developer, 2026-10-10). The architecture step
   writes the ADR, with the deciding reasons, and works every NFR-1 invariant through in
   MongoDB terms. The addendum's SQL sketches are background only.
+- Decision: messaging is **RabbitMQ through MassTransit**; Kafka is skipped for now
+  (developer, 2026-10-10). The architecture step settles the MassTransit version: v8
+  is open source, current releases are commercial. It also settles the RabbitMQ host:
+  a free tier is assumed, to keep NFR-16. MassTransit types stay in Infrastructure, so
+  a later swap touches nothing else.
 - Decision: the epic set departs from PRD §7.2 (a non-binding hint) in these places
   (developer accepted, 2026-10-10):
   - a deploy-platform epic (1) is added, because epic 0 deferred deployment;
@@ -127,6 +132,9 @@ tenant (2). The first demo comes at the end of epic 5.
   (2026-10-10).
 - Parked: Azure, focus area 1, has no job while hosting is on Render. It comes back
   when the developer schedules the move.
+- Parked: Kafka (half of focus area 3) has no job while messaging is RabbitMQ only.
+  The natural later job is an event log of booking events for audit, reconciliation
+  and reporting (addendum, *Messaging*).
 - Assumption: MongoDB is hosted on MongoDB Atlas's free tier [ASSUMPTION], because
   Render has no managed MongoDB. The architecture step confirms it. If it holds:
   - the free tier has no backups, so NFR-19 needs our own daily dump (epic 1);
@@ -145,7 +153,8 @@ tenant (2). The first demo comes at the end of epic 5.
   - the concurrency design: the Slot document; capacity, reserved and taken; the
     booking-limit guard; sequence numbers; ticket-code uniqueness; and the
     transaction, write concern and read concern for each write path — 3, 5, 7, 8;
-  - domain events, the outbox, and the RabbitMQ/Kafka split — 5, 6, 7, 8, 11, 12;
+  - domain events, the outbox, MassTransit's version and the RabbitMQ topology
+    (exchanges, queues, retries, delayed messages) — 5, 6, 7, 8, 11, 12;
   - background jobs on Render (scheduled publication, lapse, reminders, retries,
     reconciliation, purge), given that free services sleep when idle — 1, 3, 5, 6, 10;
   - the API error format, and business reason codes against 429 — all;

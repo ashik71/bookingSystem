@@ -13,7 +13,7 @@ risk: high
 ## Description
 
 The asynchronous notification pipeline, which is the product's main messaging workload.
-Events from the outbox reach a queue. Idempotent consumers send each notification at
+Events from the outbox reach RabbitMQ through MassTransit. Idempotent consumers send each notification at
 most once per event: by SMS, and also by browser push if the patient turned it on.
 Reminders go out at the owner's lead time. A booking never waits on, or fails because
 of, a notification. A failed send is retried and then raises an owner alert. The live
@@ -83,14 +83,16 @@ channel, and this epic owns the rest. The first real SMS sends in epic 10, in pr
 - parent — _bmad-output/initiative-booking-management/prd-slotbook/prd-slotbook.md §4.6 (FR-27 to FR-29), FR-45, §2.3 UJ-1, UJ-3, UJ-6
 - constraint — the same PRD §5.5 NFR-16, NFR-17
 - addendum — _bmad-output/initiative-booking-management/prd-slotbook/addendum.md, sections SMS and Messaging
-- architecture — not yet written; sections for the outbox and event contract, the RabbitMQ/Kafka split, the SMS provider (Q1), push, background jobs
+- architecture — not yet written; sections for the outbox and event contract, MassTransit and the RabbitMQ topology, the SMS provider (Q1), push, background jobs
 
 ## Notes
 
 - Open question: which SMS provider, and is there a free quota for local numbers (Q1)?
   The architecture step answers it. Done when 5 waits on it.
-- Unknown: whether a message broker is available on a free tier. The architecture step's
-  RabbitMQ/Kafka choice must satisfy SC-7.
+- Decision: RabbitMQ through MassTransit; no Kafka for now (developer, 2026-10-10).
+- Unknown: the MassTransit version (v8 is open source, current releases are commercial)
+  and whether the free RabbitMQ host's limits hold for this epic's load (SC-7). The
+  architecture step settles both.
 - Waits on epic-booking-core because: it consumes the booking events from the outbox.
 - Waits on epic-patient-sign-in because: it needs the SMS channel interface, the
   development channel, and the patient's stored language.

@@ -38,6 +38,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 
 | — | **Database: MongoDB** (developer, 2026-10-10) | ADR to write in 010 |
 | — | **Hosting: Render, for now**; Azure later as its own epic (developer, 2026-10-10) | ADR to write in 010 |
+| — | **Messaging: RabbitMQ through MassTransit; Kafka skipped for now** (developer, 2026-10-10) | ADR to write in 010 |
 | — | **Go-live line:** epics 1–10 before the first real booking; 11 announcements + 12 chat fast-follow; every epic ships to a pre-launch environment from epic 1 (developer, 2026-10-10) | Initiative Notes |
 
 *ADR-0002 is reserved for modular monolith vs microservices (architecture step).*
@@ -56,7 +57,7 @@ Don't let a session assume an answer to any of these.
 | Data access (official driver or EF Core provider), schema changes; MongoDB host and tier (assumed Atlas free: no backups, throughput cap, custom roles unknown) | Epics 1, 2 | Architecture |
 | Background jobs on Render's free tier, where services sleep when idle | Epics 3, 5, 6, 10 | Architecture; epic 1 proves a timer fires |
 | Free SMS quota for local numbers (Q1)? Live OTP is SMS only either way; it sets pre-sale cost and the default daily OTP budget | SMS provider | Architecture |
-| RabbitMQ vs Kafka split | Messaging epic | Architecture |
+| MassTransit version: v8 (open source; end of support reported as end of 2026, unofficial) or a commercial licence; RabbitMQ host (free CloudAMQP tier assumed) | Epic 6 | Architecture |
 | Where the worker and dashboard live (default: `sandbox/` here, dashboard as its own epic) | Pipeline build | Architecture |
 
 ## Open threads
@@ -74,7 +75,8 @@ Don't let a session assume an answer to any of these.
   Every epic's Done when ends with the **standard epic checks SC-1–SC-8** defined in
   the initiative file. The cross-epic decisions for architecture are listed in the
   initiative Notes
-- **Azure (focus area 1) is parked** while hosting is on Render
+- **Azure (focus area 1) and Kafka (half of focus area 3) are parked** while hosting is
+  Render and messaging is RabbitMQ only
 - **Architecture blueprint (009):** the architecture follows the developer's reference
   architecture, an external client repo: Clean Architecture (Domain, Application,
   Infrastructure, Api, event contracts; aggregates; feature folders aligned across

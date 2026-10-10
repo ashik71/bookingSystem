@@ -27,6 +27,8 @@
 | Every epic ships to a **pre-launch environment** from epic 1 on, where the development SMS channel is allowed. Epic 10 stands up production from the same environment definition | Initiative Notes |
 | **Hosting: Render**, for now. A later move to Azure would be its own epic | Initiative Notes; ADR to write in 010 |
 | **Database: MongoDB.** The addendum's SQL sketches are now background only | Initiative Notes; ADR to write in 010 |
+| **Architecture blueprint:** Clean Architecture and event-driven, following the developer's reference architecture (an external client repo; patterns only) | STATE open threads |
+| **Messaging: RabbitMQ through MassTransit;** Kafka skipped for now. The version (v8 open source or a commercial licence) is settled in architecture | Initiative Notes; ADR to write in 010 |
 | The epic boundaries differ from §7.2 in six places, accepted as drafted: <br>• a deploy-platform epic is added <br>• the ticket code and ticket page move into booking core <br>• a new clinic's-day epic takes FR-20, FR-24, FR-25, FR-40, FR-41 and FR-11's bulk cancel <br>• the public check joins anti-impersonation <br>• notifications move up <br>• there is no languages epic | Initiative Notes |
 | **Standard epic checks SC-1 to SC-8** close every epic's Done when: deployed, cross-tenant, audit, roles, languages, logs, cost, patient pages | Initiative file |
 | Publish the epics to GitHub after architecture, not now | This log |
@@ -111,6 +113,8 @@ None.
 ## Parked for later
 
 - **Azure:** comes back as a migration epic when the developer schedules it.
+- **Kafka:** no job while messaging is RabbitMQ only. A later job could be an event log
+  of booking events.
 - **Publishing the 12 epics to GitHub:** after architecture adds the spine references.
 - **The pipeline's remaining work (review mode, worker, dashboard):** not in this
   epic set; where it lives is an architecture question.
