@@ -49,7 +49,11 @@ flowchart LR
     A -->|"AMQPS + credentials from env"| R[["CloudAMQP"]]
     A -->|"OTLP + token, no personal data"| G["Grafana Cloud"]
     A -->|"API key from env"| P["SMS / push providers"]
+    Y["Grafana Synthetics"] -->|"GET /health only"| A
     Dev["Sandbox agent<br/>(untrusted author)"] -->|"PR only, review + ci-ok"| Repo["main"]
+    Repo -->|"ci on main, then deploy.yml"| GA["GitHub Actions<br/>deploy hooks as secrets"]
+    GA -->|"deploy hook"| S
+    GA -->|"deploy hook"| A
 ```
 
 ## Threats and mitigations
@@ -58,9 +62,9 @@ flowchart LR
 
 | Threat | Mitigation | Proven by |
 | --- | --- | --- |
-| **SMS pumping.** A script triggers OTPs to many numbers so we pay for the messages | Only the tenant's country is accepted (FR-1). 60 s between resends, at most 5 an hour per number, 100 an hour per IP (FR-3). The **daily OTP budget** is a guard document (AD-6), so it can't be overshot under concurrency. The demo sends through the development channel at no cost | A test of the FR-3 limits. A concurrency test that the budget is never exceeded (AD-6 row) |
+| **SMS pumping.** A script triggers OTPs to many numbers so we pay for the messages | Only the tenant's country is accepted (FR-1). 60 s between resends, at most 5 an hour per number, 100 an hour per IP (FR-3), counted from stored documents so a restart can't reset them (AD-22). The **daily OTP budget** is a guard document (AD-6), so it can't be overshot under concurrency. The demo sends through the development channel at no cost | A test of the FR-3 limits. A concurrency test that the budget is never exceeded (AD-6 row) |
 | **Brute-forcing a code** | 6 digits, 5 minutes, single use, invalidated after 5 wrong attempts. Stored as a hash and compared in constant time (FR-2) | Tests for each FR-2 consequence |
-| **Probing whether a number exists** | The OTP request answers the same way whether or not the number is a known patient | A test comparing the responses for a known and an unknown number |
+| **Probing whether a number exists** | The OTP request returns the same status, body and timing class whether or not the number is a known patient (AD-12) | A test comparing the responses for a known and an unknown number |
 | **A scammer asks the patient for their code** | The warning on the OTP screen and in the SMS text (FR-6). No staff screen or API ever shows an OTP | An FR-6 test. The log and span scan (AD-17) |
 | **Theft of the known-device marker** | A 256-bit random secret, stored as a hash, bound to one number, in a `Secure; HttpOnly; SameSite=Strict` cookie. 90 days. Revoked by signing out or by FR-44 (FR-4, AD-12). XSS controls below | The FR-4 tests: a guessed marker and a marker for another number never match |
 
@@ -79,7 +83,7 @@ flowchart LR
 | Threat | Mitigation | Proven by |
 | --- | --- | --- |
 | **IDOR: changing a booking id in a request** | Patient endpoints take the patient only from the session and never accept a patient id. Another patient's resource returns 404, never 403 (FR-5, AD-12). Ids are Guid v7, which are **not** secret, and the design never relies on them being hard to guess | The **cross-patient suite**: two patients in one tenant, every patient endpoint |
-| **A practitioner reading outside their role** | Every staff endpoint declares its roles (AD-12, SC-4). Handlers scope "own day" views to the acting practitioner | Role tests per endpoint (SC-4) |
+| **A practitioner reading outside their role** | Every staff endpoint declares its roles (AD-12, SC-4). Practitioner-scoped queries take the practitioner id from the session, never from the request (AD-12) | Role tests per endpoint (SC-4) |
 
 ### 4. Cross-tenant access
 
@@ -93,32 +97,43 @@ flowchart LR
 | Threat | Mitigation | Proven by |
 | --- | --- | --- |
 | **Password guessing or stuffing** | Lockout after 5 failures for 15 minutes. A per-IP rate limit on sign-in. Passwords of at least 12 characters with no composition rules. **TOTP is mandatory**, so a password alone never signs in (FR-38, AD-12) | A test that a sign-in without the second factor is refused. A lockout test |
-| **Session theft** | A server-side session in a `Secure; HttpOnly; SameSite=Strict` cookie. Staff sessions last 12 hours. Disabling an account or revoking a session takes effect within 30 s (AD-12, FR-38) | An FR-38 test: a disabled account's session stops working within 1 minute |
+| **Session theft** | A server-side session in a `Secure; HttpOnly; SameSite=Strict` cookie. Staff sessions last 12 hours. Disabling an account, changing its roles or revoking a session evicts the cached session at once; 30 s is only the cache bound (AD-12, FR-38). `__Host-` cookie names | An FR-38 test: a disabled account's session stops working within 1 minute |
 | **CSRF** | `SameSite=Strict` plus the antiforgery header on every unsafe method (AD-12) | A test that a state-changing request without the header is refused |
-| **XSS that steals data or acts as the user** | Angular escaping. No `innerHTML` with user text and no `bypassSecurityTrust*` (lint). CSP `default-src 'self'`. User text is never rendered as HTML (NFR-7, AD-12) | The lint rules in CI. A test that stored markup renders as text |
+| **XSS that steals data or acts as the user** | Angular escaping. No `innerHTML` with user text and no `bypassSecurityTrust*` (lint). A document CSP set on the static site, `default-src 'self'`, no inline scripts (AD-18). User text is never rendered as HTML (NFR-7) | The lint rules in CI. A test that stored markup renders as text |
 | **Abuse of the MFA reset** | Only an owner can reset a practitioner's MFA. Owners recover through recovery codes or another owner. Every reset is an audit entry (FR-42) | A role test on the reset, and an audit test |
 
 ### 6. Bots at publication (fairness)
 
-| Threat | Mitigation | Residual risk |
-| --- | --- | --- |
-| A script books many places the moment a week opens | Every booking needs a verified number (OTP). The per-number booking limit is a guard document (FR-17, AD-6). Rate limits per IP and per number | Someone with many SIM cards can still book several places. Accepted for v1; practitioners keep reserved places for walk-ins (FR-12) |
+| Threat | Mitigation | Proven by | Residual risk |
+| --- | --- | --- | --- |
+| A script books many places the moment a week opens | Every booking needs a verified number (OTP). The per-number booking limit is a guard document (FR-17, AD-6). Rate limits per IP and per number (AD-22) | The PatientLedger concurrency test (NFR-1). Rate-limit tests | Someone with many SIM cards can still book several places. Accepted for v1; practitioners keep reserved places for walk-ins (FR-12) |
 
 ### 7. Exhausting free-tier quotas (availability)
 
-| Threat | Mitigation | Residual risk |
-| --- | --- | --- |
-| Flooding anonymous endpoints to burn Atlas Free's 100 ops/s, CloudAMQP's message quota or Render's hours | Per-IP rate limits (NFR-6). A 5-second cache on availability (AD-12). An in-process session cache, so authenticated requests don't each cost a database read (AD-12) | A distributed flood can still throttle the free tier. Accepted for the demo; a paid tier or an edge cache is the answer at launch |
+| Threat | Mitigation | Proven by | Residual risk |
+| --- | --- | --- | --- |
+| Flooding anonymous endpoints to burn Atlas Free's 100 ops/s, CloudAMQP's message quota or Render's hours | Per-IP rate limits (AD-22). An availability cache evicted on every Slot or Week commit, with a 5 s TTL backstop (AD-22). An in-process session cache (AD-12). Fan-out creates records directly, not one broker message per patient (AD-21). The MongoDB operations alert at 70/s (AD-18) | Rate-limit tests. A test that a booking evicts availability. The alert rule in `render.yaml` / Grafana | A distributed flood can still throttle the free tier. Accepted for the demo; a paid tier or an edge cache is the answer at launch |
+| Refusal floods amplifying audit writes | `IRefusalRecorder` writes at most one entry per actor per minute and never audits anonymous refusals (AD-20) | A test that 100 refused requests in a minute write one entry |  |
 
 ### 8. Data exposure, and the delivery pipeline
 
 | Threat | Mitigation | Proven by |
 | --- | --- | --- |
 | Personal data in logs or traces sent to Grafana | No personal data in logs or span attributes. No MongoDB command text, request bodies or query strings in traces (AD-17) | The log and span scan in the integration suite (SC-6) |
-| Data intercepted or read at rest | TLS on every hop (Render, Atlas, AMQPS), and Atlas encryption at rest (NFR-10) | Configuration review in epic 1 |
-| Masking | Lists, door checks and exports mask numbers; only the owner's CSV export has full numbers, and it's audited (NFR-9) | Masking tests per screen |
-| A malicious change slipped in by the sandbox agent or a dependency | The agent works only through PRs: one approval plus `ci-ok` under the `protect-main` ruleset. It has no Docker socket and no deploy secrets (AD-19). Packages are pinned centrally | Branch ruleset (exists). Sandbox configuration (AD-19) |
-| Error responses leaking internals | Problem details never include stack traces or personal data outside Development (AD-13) | A test on the shape of a 500 response |
+| Data intercepted or read at rest | TLS on every hop (Render, Atlas, AMQPS), and Atlas encryption at rest (NFR-10) | An epic 1 proof (spine, Epic 1 proofs) |
+| Masking | The owning module masks inside its queries. Full numbers only on the patient's own endpoints, the audited detail view and the owner's audited CSV export (NFR-9, AD-12) | The cross-patient suite asserts no full number elsewhere |
+| A malicious change slipped in by the sandbox agent or a dependency | The agent works only through PRs: one approval plus `ci-ok` under `protect-main`. It has no Docker socket, no deploy hooks, no Render or Atlas credentials and no token able to merge. NuGet versions are central; npm uses `npm ci` from the lockfile (AD-19). Deploys run only from `deploy.yml` after `ci` on `main` (AD-18) | Branch ruleset (exists). Sandbox configuration (AD-19) |
+| Error responses leaking internals | A 500 carries only `code: internal_error` and `traceId` outside `Development` (AD-13) | A test on the shape of a 500 response |
+
+### 9. Threats from the architecture's own choices
+
+| Threat | Mitigation | Proven by |
+| --- | --- | --- |
+| **`X-Forwarded-For` spoofing** to dodge per-IP limits | ForwardedHeaders trusts only the one hop epic 1 proves; every limit reads one `IClientIp` (AD-22) | A test that a client-supplied `X-Forwarded-For` doesn't change the rate-limit partition |
+| **The development outbox** exposing OTPs | Only an owner can read `/staff/dev-outbox`; the page exists only with the development channel; entries expire in 24 h; `Production` refuses to start with it (AD-17, AD-18). The demo holds no real patients | The startup-guard test. A role test on the page |
+| **CSV formula injection** in the owner's export | Cells starting with `=`, `+`, `-`, `@`, tab or CR are escaped (Conventions) | A test that a note starting with `=` exports as text |
+| **Data Protection key loss** on restart, invalidating XSRF and Identity tokens | Keys persist in `data_protection_keys` (AD-12) | An epic 1 proof: an XSRF token survives a restart |
+| **A forged `X-Tenant` on the public tenant profile** | The profile returns only public data and never limits or budgets (AD-5) | A test of the profile's field list |
 
 ## Open items
 

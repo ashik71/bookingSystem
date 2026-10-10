@@ -45,6 +45,9 @@ write conflict, which MongoDB catches and the handler retries.
 | Booking state | Booking |
 | Daily OTP budget | OtpBudget |
 | Publication | Week, plus its Slots |
+| No overlapping slots per practitioner *(added 2026-10-10)* | PractitionerWeek |
+| At least one enabled owner per tenant *(added 2026-10-10)* | StaffRoster |
+| Erasure tombstone *(added 2026-10-10)* | PatientLedger |
 
 - Ticket-code uniqueness and "one number, one place per slot" are partial unique
   indexes.

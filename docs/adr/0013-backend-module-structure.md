@@ -38,6 +38,11 @@ host. **Cons:** more projects.
   and its public queries.
 - **References:** a module references only `SharedKernel.*` and other modules'
   `.Contracts`.
+  *Amended 2026-10-10:* the shared kernel's fourth part is `SharedKernel.Contracts`
+  (was `SharedKernel.IntegrationEvents`). It holds `TenantEvent`, `ICommand`/`IQuery`,
+  `LocalizedText` and `MobileNumber`, and is the only kernel project a `.Contracts`
+  project references. A closed list of public commands may write across modules
+  inside the caller's transaction (spine AD-2, AD-3).
 - **Host:** `SlotBook.Api` is the one host. It calls `Add{Module}Module()` once per
   module, and keeps controllers in `Controllers/{Module}/`.
 - **Use cases:** each is a folder holding the command or query, its handler and a

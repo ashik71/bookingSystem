@@ -42,7 +42,10 @@ the agent to get right: the outbox worker, a type registry, retries.
 - What goes over the broker, and what never does, is in spine AD-10. Audit entries and
   the booking write are never sent over the broker.
 - Notifications use a high-priority endpoint (OTP, confirmations) and a low-priority
-  one (reminders, fan-out).
+  one (reminders, fan-out). *Amended 2026-10-10:* the OTP is not sent through the
+  broker at all; Identity sends it directly after commit so the plaintext is never
+  stored (spine AD-4). Consumers only create Notification records; a 1-minute send job
+  sends and retries them (spine AD-21).
 
 ## Consequences
 

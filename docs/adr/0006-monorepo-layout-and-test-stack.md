@@ -106,7 +106,14 @@ src/frontend/                 Angular workspace (specs colocated: *.spec.ts)
   **not** decided here. It belongs to the architecture document and ADR-0002. The
   skeleton has a single API project.
 - The Playwright E2E suite is deferred until there's a real user flow. Browsers would
-  then be added to the sandbox image.
+  then be added to the sandbox image. *Amended 2026-10-10:* epic 3 is that flow.
+  Playwright with axe runs **in CI only**; the sandbox stays browserless and the agent
+  reads results through CI (spine AD-19).
+- *Amended 2026-10-10:* with the modular structure (ADR-0013), unit tests are one
+  project per module, `SlotBook.Modules.{Module}.Tests`, plus
+  `SlotBook.SharedKernel.Tests`, `SlotBook.IntegrationTests` and
+  `SlotBook.ArchitectureTests`. Epic 1 folds `SlotBook.Api.Tests` into
+  `SlotBook.IntegrationTests` (spine AD-19).
 
 ## Revisit when
 

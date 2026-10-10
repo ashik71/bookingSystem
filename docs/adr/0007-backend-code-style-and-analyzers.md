@@ -111,6 +111,11 @@ as substance.
 **Set to suggestion** (visible in the IDE, but they don't fail the build): CA1002,
 CA1008, CA1024, CA1711, CA1724, CA1848, CA2254, MA0026.
 
+*Amended 2026-10-10:* **CA1848 and CA2254 become warnings**, so `[LoggerMessage]`-only
+logging (spine AD-17) fails the build when broken. **BannedApiAnalyzers** is added
+with a root `BannedSymbols.txt` banning the wall-clock APIs and `Guid.NewGuid()`
+(spine AD-9, AD-14, AD-19).
+
 **Added** *(amended 2026-10-09)*: **SX1101** ("don't prefix local calls with `this.`") as a
 warning. With SA1101 off, IDE0003 alone doesn't fail `dotnet build`, so without SX1101 the
 "no `this.`" rule would only be enforced by `dotnet format`.
