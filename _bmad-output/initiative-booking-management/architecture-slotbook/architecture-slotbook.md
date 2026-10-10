@@ -25,6 +25,9 @@ companions:
 
 # Architecture Spine — SlotBook
 
+> **The spine wins.** A story that cannot satisfy an AD stops and comments on the
+> issue. It never works around the rule.
+
 ## Design Paradigm
 
 **A modular monolith.** One .NET process, built from Clean Architecture modules. Each
@@ -126,7 +129,7 @@ their module projects.
     - An alert's `_id` is derived from `(tenantId, kind, dedupKey)`; a duplicate key
       means "already raised" (AD-8). Dedup keys: OTP budget → the tenant's local date;
       count drift → slot id + local date; notification failure → notification id;
-      erasure incomplete → patient id. Alert kinds are an enum in `Audit.Contracts`. The
+      erasure incomplete → patient id; SMS quota exhausted → the tenant's local date. Alert kinds are an enum in `Audit.Contracts`. The
       writer also logs every alert through one `[LoggerMessage]` (FR-45).
     - **Audit entry contract:** `AuditEntry { tenantId, at (UTC), actor { kind:
       staff|patient|system, id?, roles[] }, action, target { type, id }, details }`.
@@ -228,8 +231,13 @@ their module projects.
   - Every integration event derives from `TenantEvent { Guid EventId; Guid TenantId;
     DateTimeOffset OccurredAt }` in `SharedKernel.IntegrationEvents`.
   - A job lists tenants through `Tenancy.Contracts.GetActiveTenantIdsQuery` and runs its
-    body once per tenant inside a tenant scope. Leases and migrations are the only
-    `[GlobalAggregate]` writes.
+    body once per tenant inside a tenant scope.
+  - `Tenant` is a `[GlobalAggregate]` with a unique index on `slug`. The only global
+    reads are slug → tenant id and the active-tenant list, both cached in process.
+    Settings writes run under the tenant's own scope. The only global writes are tenant
+    setup, leases and migrations.
+  - A tenant is set up by a one-off host CLI command (`SlotBook.Api seed-tenant`), never
+    an API endpoint. It creates the Tenant, its first owner and its StaffRoster.
   - Every unique index begins with `tenantId`.
   - Every aggregate is either tenant-owned or carries an explicit `[GlobalAggregate]`
     marker.
@@ -381,12 +389,27 @@ their module projects.
   - Every consumer has an explicit retry definition. Deterministic failures
     (`DomainException`, parse errors) go to the error queue at once. Transient failures
     get a bounded in-memory retry (1 s, 5 s, 15 s, 30 s). There are no broker delayed
-    messages.
+    messages. A consumer throws `DomainException` only for a deterministic refusal; a
+    "not found yet" on a read that the outbox order makes possible is transient.
+  - **Notification sends** (FR-27): a consumer only **creates** the Notification
+    (`_id` per AD-8) with status `pending`. The 1-minute notification-send job (AD-11)
+    claims due ones: it marks `sending` and commits, calls the provider, then records
+    `sent`, or `pending` with `attempts + 1` and `nextAttemptAt`. Back-off fits 6
+    attempts within 30 minutes; after that, `failed` and an owner alert
+    `notification_failed`. A record found in `sending` after a crash is marked `failed`
+    with the alert, **never resent** (FR-27's "at most once").
+  - **Topology:** MassTransit's default publish topology. Receive endpoints are named
+    `{module}-{purpose}` in kebab-case. The count of queues, error queues included, stays
+    under CloudAMQP Free's 100.
+  - **Domain events:** aggregates raise none. The handler stages the integration event
+    directly through the unit of work. There is no in-process notification bus.
   - **Notification sends use two priority endpoints**, so a fan-out burst never delays
     a waiting user:
     - **high** (its own queue and concurrency): booking confirmation and cancellation
       (the OTP is sent directly, AD-4);
     - **low**: reminders, chat-reply notices and announcement fan-out.
+
+    The job claims high-priority notifications first.
 
 ### AD-11 — Background work: in-process timers with catch-up semantics
 
@@ -404,6 +427,7 @@ their module projects.
     | Scheduled publication | 30 s |
     | Lapse | 1 min |
     | Reminders (owner: Booking) | 1 min |
+    | Notification send and retry (owner: Notifications, AD-10) | 1 min |
     | Count reconciliation of slots **and ledgers**, owner alert on drift (NFR-2) | daily |
     | `codeLive` clearing | daily |
     | Retention purge | daily, once Q3 is answered |
@@ -452,8 +476,22 @@ their module projects.
     sessions in the same transaction and evicts them from the cache.
   - **CSRF:** Angular's XSRF header is validated by ASP.NET Core antiforgery on every
     unsafe method.
-  - **Rate limits** (NFR-6) use the built-in ASP.NET Core rate limiter, in memory, per IP
-    and per number. That is valid only while AD-1 holds.
+  - **Rate limits** (NFR-6) use the built-in ASP.NET Core rate limiter, in memory. That
+    is valid only while AD-1 holds. Partition keys: IP, E.164 number, staff account id,
+    patient id. Every 429 carries `Retry-After`. Limits set in an FR follow the FR; the
+    ones NFR-6 leaves to architecture are configuration with these defaults:
+
+    | Endpoint | Default |
+    | --- | --- |
+    | Anonymous availability | 60 per minute per IP |
+    | Staff sign-in | 10 per 15 minutes per IP |
+    | OTP verify | 20 per hour per IP (on top of FR-2's 5 per challenge) |
+
+  - **Daily business quotas** (fraud reports, OTP budget) are counted in MongoDB, never
+    in the in-memory limiter, because a restart would reset them.
+  - **Fresh OTP:** an action marked `[RequiresFreshOtp]` (Delete my data, FR-44) needs
+    an OTP verified for the session's own number within the last 5 minutes, recorded on
+    the session. A known-device skip never sets it (FR-4).
   - Anonymous availability reads are served from a 5-second in-process cache per tenant
     and week. That protects the Atlas Free operation budget and NFR-13; a booking
     re-checks every rule at commit.
@@ -467,6 +505,9 @@ their module projects.
 - **Prevents:** inconsistent error shapes; user-facing text coming from the server;
   breaking changes when the frontend and API deploy at different times.
 - **Rule:**
+  - Refusals may carry **typed extension members**, declared next to the error code and
+    present in the OpenAPI document (`slot_full` → `suggestedSlotIds[]` with local
+    times; 429 → `retryAfterSeconds` plus the header).
   - Errors are RFC 9457 problem details. The body carries a stable snake_case `code`
     and the `traceId`.
 
@@ -588,6 +629,11 @@ their module projects.
     Atlas Free.
   - Atlas Free caps transfer at 10 GB in and 10 GB out per rolling 7 days, beside the
     100 ops/s cap; the Grafana dashboard tracks both.
+  - Environments are `Development`, `Demo` and `Production` (`ASPNETCORE_ENVIRONMENT`).
+    `Production` with the development SMS channel configured fails startup (FR-27);
+    `Demo` may use it. An integration test proves it.
+  - `render.yaml` sets `healthCheckPath: /health/ready`, so a failed deploy leaves the
+    previous version running.
   - Options are bound and validated at startup, and missing required configuration fails
     startup.
   - Secrets live only in Render environment groups, GitHub secrets, user secrets or
@@ -607,6 +653,16 @@ their module projects.
     same images. Tests read connection strings from environment variables and use a
     unique database per test class.
   - The NFR-1 concurrency suite and the cross-tenant suite (SC-2) are integration tests.
+  - Integration tests create sessions through a test-only session seeder; authorization
+    stays real. Outside providers (SMS, Web Push) are faked at the `ISmsChannel` and
+    push-sender seams.
+  - A test round-trips every integration event type through MassTransit serialization.
+    Integration tests wait for the outbox to drain before disposing the host.
+  - **Browser tests** (ending ADR-0006's deferral, since epic 3 is the first real user
+    flow): Playwright under `src/frontend/e2e/`, run **in CI only** (the sandbox has no
+    browser; the agent sees results through CI). Patient pages are tested at a 360 px
+    viewport with an axe-core scan, which is the automated part of SC-8. Camera scanning
+    stays a manual check recorded in the PR.
   - Test projects stay under `src/backend/tests/` (ADR-0006):
     - one `{Module}.UnitTests` per module, with folders mirroring the use cases;
     - `SharedKernel.UnitTests`;
@@ -628,7 +684,7 @@ their module projects.
 | Ids and JSON | Guid v7 as a string in JSON. camelCase properties. Enums as strings |
 | Dates | UTC instants in ISO 8601 with offset. Local dates `yyyy-MM-dd`. Display always in the tenant's time zone |
 | Errors | Problem details + `code` + `traceId` (AD-13). Translation key `errors.{code}` |
-| Mobile numbers | One `MobileNumber` value object (AD-3). E.164 in storage. ASCII digits on output. Masked (last 3 digits) everywhere except the patient's own pages and the patient detail view (NFR-9) |
+| Mobile numbers | One `MobileNumber` value object (AD-3). E.164 in storage. ASCII digits on output. Masked (last 3 digits) everywhere except the patient's own pages, the patient detail view (NFR-9) and the owner's CSV export (audited, formula-escaped) |
 | Text limits | Counted in code points after NFC. Validated in the application, never by the database |
 | Logging | `[LoggerMessage]` only. No personal data (AD-17) |
 | Configuration | Options classes validated at startup. One section per module |
@@ -756,15 +812,15 @@ render.yaml          # Render Blueprint: demo environment
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| Platform slice: the SharedKernel projects, the host, dispatcher, unit of work + outbox wiring, problem details, ServiceDefaults, Aspire, `render.yaml`, sandbox sidecars, the architecture tests | epic-deploy-platform | AD-1, AD-2, AD-3, AD-7, AD-9, AD-10, AD-17, AD-18, AD-19 |
+| Platform slice: the SharedKernel projects, the host, dispatcher, unit of work + outbox wiring, problem details, ServiceDefaults, Aspire, the lease-based job runner, `render.yaml`, sandbox sidecars, the architecture tests | epic-deploy-platform | AD-1, AD-2, AD-3, AD-7, AD-9, AD-10, AD-17, AD-18, AD-19 |
 | Tenant, settings, staff accounts, MFA, audit log, owner alerts, language infrastructure (FR-38, FR-39, FR-42, FR-43, FR-45) | Tenancy, Identity, Audit | AD-3, AD-5, AD-12, AD-16 |
 | Draft week, publication, closing, changes to published weeks (FR-7 to FR-11) | Booking (Week, Slot) | AD-6, AD-7, AD-11, AD-14 |
 | Patient sign-in, known device, session, OTP budget (FR-1 to FR-6) | Identity | AD-6, AD-12, AD-11 (TTL) |
 | Booking, limit, cancel, my bookings, ticket code and page (FR-15 to FR-19, FR-21 to FR-23) | Booking | AD-6, AD-7, AD-8, AD-13 |
-| Notifications, reminders (FR-27 to FR-29) | Notifications | AD-8, AD-10, AD-11 |
+| Notifications, reminders (FR-27 to FR-29) | Notifications sends; the reminders job is in Booking | AD-8, AD-10, AD-11 |
 | Clinic cancels, door check, check-in, lists, lookup (FR-20, FR-24, FR-25, FR-40, FR-41) | Booking | AD-6, AD-12, AD-17 (masking) |
 | Reserved places, practitioner bookings (FR-12 to FR-14) | Booking (Slot) | AD-6, AD-7 |
-| Official contacts, home warning, fraud report, public ticket check (FR-26, FR-30 to FR-32) | ClinicContent; public check in Booking | AD-5 (anonymous, `X-Tenant`), AD-12 (rate limits) |
+| Official contacts, home warning, fraud report, public ticket check (FR-26, FR-30 to FR-32) | ClinicContent (contacts, fraud reports); home warning text in Tenancy settings; public check in Booking | AD-5 (anonymous, `X-Tenant`), AD-12 (rate limits) |
 | Launch readiness (accessibility audit, language completeness, production) | frontend; AD-18 blueprint | AD-15, AD-16, AD-18 |
 | Announcements (FR-33) | ClinicContent; fan-out in Notifications | AD-10 |
 | Chat, canned replies, reply notification (FR-34 to FR-37) | Chat | AD-3, AD-10; transport deferred |
@@ -784,4 +840,5 @@ render.yaml          # Render Blueprint: demo environment
 | MassTransit after v8 support ends | Unsupported v8 still runs; types stay in Infrastructure | End of 2026, or the first sale |
 | Append-only audit enforced by a database role | Atlas Free doesn't support `createRole` from a client; a collection-scoped insert+find role must come from the Atlas API, if Free allows it at all; until then the audit repository exposes insert and find only, checked by a fitness test | Epic 2 |
 | Passkeys for staff, Kafka event log, Azure hosting, a distributed cache, live availability updates | Declined or parked by the developer; none is needed by v1 | The developer asks |
+| Announcement image storage (≤ 1 MB, JPEG/PNG/WebP) | Epic 11 is fast-follow; Render's disk is ephemeral and Atlas Free holds 0.5 GB, so it needs a $0 choice (SC-7) plus upload validation in the threat model | Epic 11 inception |
 | Where the pipeline's worker and dashboard live | Not product architecture; the default is `sandbox/` in this repo | Pipeline work is scheduled |
