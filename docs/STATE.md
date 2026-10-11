@@ -4,7 +4,7 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 012 · 2026-10-11
-**Next session:** 013: merge-check PR #38, then 6b #37 → story 7 #28 → 8 #29 → 9–11 (hitl) → 12; Claude drives the loop, developer merges
+**Next session:** 013: 6b #37 (implement) → story 7 #28 → 8 #29 → 9–11 (hitl) → 12; Claude drives the loop, developer merges
 
 ## Handoff to session 013
 
@@ -17,7 +17,7 @@ sandbox story by story (plan, approve, implement, review, fix) and stops at
 |---|---|---|
 | 1 health page live, 2, 13, 14, 4, 3 arch rules | #21, #12, #14, #15, #18, #13 | ✅ merged |
 | 5a unit of work · 5b retries · 5c schema at startup | #24 · #25 · #26 | ✅ merged (PRs #34, #35, #36) |
-| 6a outbox | #27 | 🟡 **PR #38 green, `ai:pr-ready`, waiting for the merge call** |
+| 6a outbox | #27 | ✅ merged (PR #38) |
 | 6b inbox + consumer retries | #37 | ⬜ next; plan approved (on #27, extracted on #37), go straight to implement |
 | 7 timed jobs | #28 | ⬜ needs a plan run |
 | 8 cookies, CSRF, headers | #29 | ⬜ |
@@ -26,7 +26,7 @@ sandbox story by story (plan, approve, implement, review, fix) and stops at
 | 11 Grafana Cloud | #32 | ⬜ hitl: Grafana Cloud free account |
 | 12 refactor sweep | #33 | ⬜ last |
 
-**Check first in 013:** is PR #38 merged? No jobs were running at session end.
+**Check first in 013:** nothing running, no open PRs. Start 6b #37 (`implement`).
 
 **Accounts:** Render ✅ · Atlas M0 ✅ · CloudAMQP Little Lemur ✅ (key set in Render,
 2026-10-11) · Grafana Cloud ⬜.
@@ -50,7 +50,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · **Architecture ✅ final** (011) in `architecture-slotbook/`: AD-1–AD-22 + threat model; 6 reviews applied; single tenant, free hosting · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix used on 3 real stories) · models per mode ✅ · CI ✅ · ⬜ `review` mode, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write, classic PAT with `workflow` scope) ✅ · ruleset `protect-main` ✅ (1 approval + required `ci-ok`, bound to GitHub Actions) · CI `ci.yml` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
-| **Code** | Epic 1: stories 1–5 and 13/14 merged, 6a in review (PR #38); earlier: #12 (PR #16), #15 (PR #17), #14 (PR #19), #18 (PR #20) merged; sandbox gets MongoDB + RabbitMQ sidecars per run (`fae9037`). Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
+| **Code** | Epic 1: stories 1–5 and 13/14 merged, 6a merged (PR #38); earlier: #12 (PR #16), #15 (PR #17), #14 (PR #19), #18 (PR #20) merged; sandbox gets MongoDB + RabbitMQ sidecars per run (`fae9037`). Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
 | **Blocked on** | Nothing |
 | **Goal (010, 011)** | **Near-term target is a team demo**: one tenant, free hosting only, no paid fallback. Clinic launch parked, not dropped. Epic order and done line need re-sequencing |
 | **Sequencing** | Finish architecture. Then publish the epics and incept epic 1 (deploy platform, no screens). `bmad-ux` before epic 2 is incepted. Build order: `_bmad-output/initiative-booking-management/tickets.toml` |

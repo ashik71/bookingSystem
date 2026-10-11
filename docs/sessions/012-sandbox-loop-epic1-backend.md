@@ -8,8 +8,8 @@
   live (`slotbook-api-sc87` and `slotbook-web` on Render, `/health/ready` reports
   MongoDB healthy).
 - Built and merged #13 (architecture rules), story 5 split into 5a #24 / 5b #25 /
-  5c #26, all merged. Story 6 split into 6a #27 / 6b #37; **PR #38 (6a) is green and
-  `ai:pr-ready`, waiting for the developer's merge call**.
+  5c #26, all merged. Story 6 split into 6a #27 / 6b #37; **PR #38 (6a) merged at session end
+  by the developer**.
 - Published every remaining epic 1 story to GitHub in build order (#27–#33, #37).
 - Fixed a pipeline bug: `sandbox/entrypoint.sh` dropped the sidecar connection
   strings when switching to the agent user (`ec7d3d1`).
@@ -67,7 +67,7 @@ adapt how the test reaches the state".
 
 ## Homework set
 
-- [ ] Merge PR #38 (6a) — reviewed, green
+- [x] Merge PR #38 (6a)
 - [ ] Before story 9 (#30): Render deploy hooks as GitHub secrets (Claude will guide)
 - [ ] Before story 11 (#32): Grafana Cloud free account (Claude will guide)
 - [ ] Carried: brief entry in `docs/learning/LEARNINGS.md`; `colima stop` after sessions
@@ -81,7 +81,7 @@ adapt how the test reaches the state".
 
 ## Next session
 
-1. Check PR #38 merged; then run 6b **#37** straight to `implement` (plan already
+1. Run 6b **#37** straight to `implement` (plan already
    approved on #27, extracted on #37). 6b must turn MassTransit's inbox cleanup service
    back on without letting MongoDB loss stop the host.
 2. Then #28 (story 7, timed jobs; needs a plan run), #29 (8, cookies/CSRF), #30 (9,
