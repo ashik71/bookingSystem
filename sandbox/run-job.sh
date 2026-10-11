@@ -75,12 +75,52 @@ stamp=$(date +%Y%m%d-%H%M%S)
 base="$SLOTBOOK_RUNS/$ISSUE-$MODE-$stamp"
 echo "run-job: #$ISSUE $MODE on $SLOTBOOK_REPO, model $SLOTBOOK_MODEL, max-turns $MAX_TURNS → $base.*" >&2
 
+# ---------------------------------------------------------------- sidecars (spine AD-19)
+# Each run gets its own network with a single-node MongoDB replica set and a RabbitMQ,
+# reachable from the sandbox as `mongo` and `rabbitmq`. The agent gets connection strings
+# only; it has no Docker access. Everything is removed when the run ends.
+MONGO_IMAGE=${SLOTBOOK_MONGO_IMAGE:-mongo:8.0}
+RABBIT_IMAGE=${SLOTBOOK_RABBIT_IMAGE:-rabbitmq:4-alpine}
+net="slotbook-$ISSUE-$MODE-$stamp"
+mongo_ctr="$net-mongo" rabbit_ctr="$net-rabbitmq"
+cleanup() {
+  docker rm -f "$mongo_ctr" "$rabbit_ctr" >/dev/null 2>&1 || true
+  docker network rm "$net" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker network create "$net" >/dev/null
+docker run -d --name "$mongo_ctr" --network "$net" --network-alias mongo --platform linux/arm64 \
+  --memory 1g --tmpfs /data/db "$MONGO_IMAGE" --replSet rs0 --bind_ip_all >/dev/null
+docker run -d --name "$rabbit_ctr" --network "$net" --network-alias rabbitmq --platform linux/arm64 \
+  --memory 512m "$RABBIT_IMAGE" >/dev/null
+
+ready=""
+for _ in $(seq 1 60); do
+  if docker exec "$mongo_ctr" mongosh --quiet --eval \
+      'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}).ok }' \
+      >/dev/null 2>&1 \
+    && docker exec "$mongo_ctr" mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true \
+    && docker exec "$rabbit_ctr" rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
+    ready=yes; break
+  fi
+  sleep 2
+done
+[ -n "$ready" ] || die "sidecars didn't become ready (MongoDB replica set and RabbitMQ)"
+echo "run-job: sidecars ready on network $net (mongo, rabbitmq)" >&2
+
+ConnectionStrings__mongodb="mongodb://mongo:27017/?replicaSet=rs0"
+ConnectionStrings__rabbitmq="amqp://guest:guest@rabbitmq:5672/"
+export ConnectionStrings__mongodb ConnectionStrings__rabbitmq
+
 set +e
 # shellcheck disable=SC2086 # optional_env is a list of flags
 docker run --rm -i --init --name "slotbook-$ISSUE-$MODE-$stamp" --platform linux/arm64 \
+  --network "$net" \
   --memory 3g --memory-swap 3g --cpus 3 --pids-limit 1024 \
   --cap-drop ALL --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges \
   -e GH_TOKEN -e CLAUDE_CODE_OAUTH_TOKEN -e SLOTBOOK_REPO -e ISSUE -e MODE -e MAX_TURNS $optional_env \
+  -e ConnectionStrings__mongodb -e ConnectionStrings__rabbitmq \
   -v slotbook-nuget:/home/agent/.nuget/packages -v slotbook-npm:/home/agent/.npm \
   "$IMAGE" < "$PROMPT" 2>&1 >"$base.jsonl" | tee "$base.log" >&2
 rc=${PIPESTATUS[0]}

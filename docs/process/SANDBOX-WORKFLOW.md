@@ -113,6 +113,13 @@ Merging the PR (developer only) closes the issue through `Closes #<n>`.
   removed afterwards. Exit codes: `0` done, `10` paused at the usage limit, `11` hit
   max turns, `12` agent blocked, `1` failed. The worker maps these to labels;
   `run-job.sh` never touches labels.
+- **Sidecars** (spine AD-19): each run gets its own Docker network with a single-node
+  MongoDB replica set (`mongo:8.0`, data on tmpfs) and RabbitMQ (`rabbitmq:4-alpine`),
+  reachable from the sandbox as `mongo` and `rabbitmq`. The agent sees only
+  `ConnectionStrings__mongodb` and `ConnectionStrings__rabbitmq`, never Docker. The
+  sidecars and the network are removed when the run ends. CI runs the same images as
+  service containers. Never edit `run-job.sh` while a job is running: bash reads the
+  script as it goes.
 - **Two users inside the container** (`sandbox/entrypoint.sh`). The repo is public, so
   anyone can write an issue comment, and that comment could carry a prompt injection.
   So **the agent never holds the GitHub token**:
