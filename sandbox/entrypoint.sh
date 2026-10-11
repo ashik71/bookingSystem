@@ -44,6 +44,9 @@ AGENT_ENV=(
   GIT_AUTHOR_NAME="$BOT_LOGIN" GIT_COMMITTER_NAME="$BOT_LOGIN"
   GIT_AUTHOR_EMAIL="$BOT_ID+$BOT_LOGIN@users.noreply.github.com"
   GIT_COMMITTER_EMAIL="$BOT_ID+$BOT_LOGIN@users.noreply.github.com"
+  # The run's own sidecars (run-job.sh); not secrets.
+  ConnectionStrings__mongodb="${ConnectionStrings__mongodb:-}"
+  ConnectionStrings__rabbitmq="${ConnectionStrings__rabbitmq:-}"
 )
 # Everything that touches the agent's working copy runs as agent, so root never
 # executes config or hooks the agent could have planted in it.
