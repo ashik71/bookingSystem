@@ -16,6 +16,8 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
 {
     private string? _mongoConnectionString;
     private bool _mongoConnectionStringSet;
+    private string? _rabbitMqConnectionString;
+    private bool _rabbitMqConnectionStringSet;
 
     public CapturingLoggerProvider Logs { get; } = new();
 
@@ -51,6 +53,23 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
         }
     }
 
+    /// <summary>
+    /// <c>ConnectionStrings:rabbitmq</c>; defaults to the real broker of the environment,
+    /// <see langword="null"/> leaves it out.
+    /// </summary>
+    public string? RabbitMqConnectionString
+    {
+        get => _rabbitMqConnectionStringSet ? _rabbitMqConnectionString : IntegrationEnvironment.RabbitMq;
+        init
+        {
+            _rabbitMqConnectionString = value;
+            _rabbitMqConnectionStringSet = true;
+        }
+    }
+
+    /// <summary>Prefix of the endpoint names, so parallel test classes never share a queue.</summary>
+    public string EndpointPrefix { get; init; } = "it-" + Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(4));
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -67,6 +86,18 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection([new("ConnectionStrings:mongodb", string.Empty)]));
         }
+
+        if (RabbitMqConnectionString is not null)
+        {
+            builder.UseSetting("ConnectionStrings:rabbitmq", RabbitMqConnectionString);
+        }
+        else
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection([new("ConnectionStrings:rabbitmq", string.Empty)]));
+        }
+
+        builder.UseSetting("Messaging:EndpointPrefix", EndpointPrefix);
 
         if (MongoDatabase is not null)
         {

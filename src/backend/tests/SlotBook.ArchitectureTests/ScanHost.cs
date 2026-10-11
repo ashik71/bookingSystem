@@ -18,6 +18,7 @@ internal sealed class ScanHost(bool includeFixtureControllers) : WebApplicationF
 
         builder.UseEnvironment("Production");
         builder.UseSetting("ConnectionStrings:mongodb", "mongodb://localhost:27017");
+        builder.UseSetting("ConnectionStrings:rabbitmq", "amqp://guest:guest@localhost:5672/");
         builder.UseSetting("Tenancy:Tenant:Slug", "scan-clinic");
         builder.UseSetting("Tenancy:Tenant:DisplayName", "Scan Clinic");
         builder.UseSetting("Tenancy:Tenant:Country", "GB");
@@ -29,6 +30,16 @@ internal sealed class ScanHost(bool includeFixtureControllers) : WebApplicationF
         {
             var schema = services.Where(descriptor => descriptor.ImplementationType == typeof(SchemaInitializer)).ToList();
             foreach (var descriptor in schema)
+            {
+                services.Remove(descriptor);
+            }
+
+            // Nor does the bus: no broker connection, and no outbox delivery polling a database that isn't there.
+            var bus = services
+                .Where(descriptor => descriptor.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)
+                    && (descriptor.ImplementationType?.Namespace?.StartsWith("MassTransit", StringComparison.Ordinal) ?? false))
+                .ToList();
+            foreach (var descriptor in bus)
             {
                 services.Remove(descriptor);
             }
