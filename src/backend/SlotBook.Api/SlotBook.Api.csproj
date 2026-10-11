@@ -5,4 +5,8 @@
     <ProjectReference Include="../SharedKernel/SlotBook.SharedKernel.Infrastructure/SlotBook.SharedKernel.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlotBook.IntegrationTests" />
+  </ItemGroup>
+
 </Project>
