@@ -1,8 +1,10 @@
+using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
+using SlotBook.SharedKernel.Contracts;
 using SlotBook.SharedKernel.Domain;
 
 namespace SlotBook.SharedKernel.Infrastructure.Persistence;
@@ -25,12 +27,13 @@ namespace SlotBook.SharedKernel.Infrastructure.Persistence;
 /// blocking a thread; <see cref="Dispose"/> is the synchronous fallback.
 /// </para>
 /// </summary>
-public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<MongoUnitOfWork> logger) : IUnitOfWork, IAsyncDisposable, IDisposable
+public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, IServiceProvider services, ILogger<MongoUnitOfWork> logger) : IUnitOfWork, IAsyncDisposable, IDisposable
 {
     private static readonly TransactionOptions _transactionOptions = new(
         ReadConcern.Snapshot, ReadPreference.Primary, WriteConcern.WMajority);
 
     private readonly Dictionary<(string Collection, Guid Id), TrackedAggregate> _tracked = [];
+    private readonly List<Func<IPublishEndpoint, CancellationToken, Task>> _events = [];
     private IClientSessionHandle? _session;
     private bool _committed;
 
@@ -42,7 +45,7 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<M
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
         EnsureOpen();
-        if (_tracked.Count == 0)
+        if (_tracked.Count == 0 && _events.Count == 0)
         {
             _committed = true;
             return;
@@ -56,10 +59,34 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<M
             await tracked.Writer.WriteAsync(session, tracked, now, cancellationToken).ConfigureAwait(false);
         }
 
+        if (_events.Count > 0)
+        {
+            // The scoped publish endpoint is the bus outbox: it writes on this unit of work's session
+            // (see UnitOfWorkMongoDbContext), so the events commit or abort with the aggregates.
+            var publishEndpoint = services.GetRequiredService<IPublishEndpoint>();
+            foreach (var publish in _events)
+            {
+                await publish(publishEndpoint, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        // Once every write is in, a late cancellation must not abort a commit that may have landed.
         await CommitRetry.RunAsync(
-            () => session.CommitTransactionAsync(cancellationToken),
+            () => session.CommitTransactionAsync(CancellationToken.None),
             AmbientAttempt.Current?.Budget,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public void AddIntegrationEvent<TEvent>(TEvent integrationEvent)
+        where TEvent : TenantEvent
+    {
+        ArgumentNullException.ThrowIfNull(integrationEvent);
+        EnsureOpen();
+
+        // The closure keeps the concrete type argument, so the event is published as TEvent and not as TenantEvent.
+        _events.Add((endpoint, cancellationToken) =>
+            endpoint.Publish(integrationEvent, context => context.MessageId = integrationEvent.EventId, cancellationToken));
+        logger.LogEventStaged(typeof(TEvent).Name, integrationEvent.EventId);
     }
 
     public void Dispose() => _session?.Dispose();
@@ -95,11 +122,24 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<M
     internal async Task<IClientSessionHandle> BeginAsync(CancellationToken cancellationToken)
     {
         EnsureOpen();
+        return await EnsureTransactionAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The session with a running transaction, started on first use and restarted when the last one ended.
+    /// Unlike <see cref="BeginAsync"/> it works after <see cref="CommitAsync"/> has started: the outbox
+    /// writes the staged events during the commit, and the delivery service reuses one scope for many transactions.
+    /// </summary>
+    internal async Task<IClientSessionHandle> EnsureTransactionAsync(CancellationToken cancellationToken)
+    {
         if (_session is null)
         {
-            var session = await client.StartSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            session.StartTransaction(_transactionOptions);
-            _session = session;
+            _session = await client.StartSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!_session.IsInTransaction)
+        {
+            _session.StartTransaction(_transactionOptions);
         }
 
         return _session;
