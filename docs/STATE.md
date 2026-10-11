@@ -4,7 +4,7 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 011 · 2026-10-11
-**Next session:** 012: finish epic 1's backend lane (#14, #18, then #13 and stories 5–8); the developer creates the free accounts for the deploy lane (stories 1, 9, 10, 11)
+**Next session:** 012: epic 1 backend lane next (#13 architecture rules, then stories 5–8); deploy lane once the developer's Render + Atlas accounts are ready (story 1 first)
 
 ## Handoff to session 012
 
@@ -16,14 +16,19 @@ sandbox**. Epic issue #11.
 |---|---|---|
 | 2 Layout and error format | #12 | ✅ merged (PR #16, 1 fix round) |
 | 14 Clock, configured tenant, readiness | #15 | ✅ merged (PR #17) |
-| 13 Dispatcher and validators | #14 | 🟡 implement running at session end; plan approved on the issue |
-| 4 Integration tests on real MongoDB + RabbitMQ | #18 | 🟡 plan running at session end |
-| 3 Architecture rules | #13 | ⬜ waits on #14 |
+| 13 Dispatcher and validators | #14 | ✅ merged (PR #19) |
+| 4 Integration tests on real MongoDB + RabbitMQ | #18 | ✅ merged (PR #20); sandbox (85 tests) and CI both green |
+| 3 Architecture rules | #13 | ⬜ **ready to start** (plan first) |
 | 5–8, 12 | not published | ⬜ publish as they become ready |
 | 1, 9, 10, 11 (deploy lane) | not published | ⬜ **need the developer's free accounts** |
 
-**Check first in 012:** open PRs and the last runs in `$SLOTBOOK_RUNS` (a run that hit
-the usage limit pushed `WIP: paused at limit`).
+**Check first in 012:** nothing was running at session end; no open PRs.
+
+**Developer, in progress (2026-10-11):** Render account created and GitHub connected.
+Next: Atlas M0 in AWS Singapore (ap-southeast-1, same region as Render Singapore),
+a database user, network access `0.0.0.0/0`; keep the connection string in a password
+manager, never in chat or the repo. Then publish story 1 (Dockerfile + `render.yaml`
+Blueprint); create services only through the Blueprint.
 
 **Developer, before the deploy lane:** create free accounts and keep the secrets out of
 the repo: Render (Docker web service + static site; deploy hooks as GitHub secrets),
@@ -52,7 +57,7 @@ and fixes, and the developer merges. Process: `docs/process/SANDBOX-WORKFLOW.md`
 | **BMAD planning** | Brief ✅ · Epic 0 ✅ (epic #3 closed) · PRD ✅ **final** in `prd-slotbook/` (FR-1–45, NFR-1–19, SM-1–12) · **Epics ✅** (009): 12 epic envelopes + initiative envelope, tree-checked; 1–10 go-live, 11–12 fast-follow; **not yet published** to GitHub · UX ⬜ · **Architecture ✅ final** (011) in `architecture-slotbook/`: AD-1–AD-22 + threat model; 6 reviews applied; single tenant, free hosting · `bmad-ticket` GitHub store configured ✅ |
 | **Pipeline** | 🟡 Host ready ✅ · sandbox image + `run-job.sh` ✅ (plan, implement, fix used on 3 real stories) · models per mode ✅ · CI ✅ · ⬜ `review` mode, worker, dashboard |
 | **GitHub** | Bot `ashik71-slotbot` (Write, classic PAT with `workflow` scope) ✅ · ruleset `protect-main` ✅ (1 approval + required `ci-ok`, bound to GitHub Actions) · CI `ci.yml` ✅ · `ai:*` + BMAD store labels ✅ · milestone `initiative-booking-management` ✅ · Project board [SlotBook delivery](https://github.com/users/ashik71/projects/2) ✅ with pipeline columns; `board-sync` Action derives Status from labels |
-| **Code** | Epic 1 in progress: #12 (PR #16) and #15 (PR #17) merged; sandbox gets MongoDB + RabbitMQ sidecars per run (`fae9037`). Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
+| **Code** | Epic 1 in progress: #12 (PR #16), #15 (PR #17), #14 (PR #19), #18 (PR #20) merged; sandbox gets MongoDB + RabbitMQ sidecars per run (`fae9037`). Epic 0 stories all merged: #4 `/health` + Angular page (PR #6, ~$1.50, 3 fix rounds), #7 backend style (PR #8, ~$1.10), #5 CI with required `ci-ok` (PR #9, ~$0.83). Red-check proof: PR #10 (closed). Epic #3 closed |
 | **Blocked on** | Nothing |
 | **Goal (010, 011)** | **Near-term target is a team demo**: one tenant, free hosting only, no paid fallback. Clinic launch parked, not dropped. Epic order and done line need re-sequencing |
 | **Sequencing** | Finish architecture. Then publish the epics and incept epic 1 (deploy platform, no screens). `bmad-ux` before epic 2 is incepted. Build order: `_bmad-output/initiative-booking-management/tickets.toml` |

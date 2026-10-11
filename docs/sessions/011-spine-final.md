@@ -17,8 +17,8 @@
   sliced into stories (`tickets.toml`); story 2 came back from its plan at about 45 files
   and was split into #12, #14 and #15. Claude added the MongoDB and RabbitMQ sidecars to
   `run-job.sh`. The developer then delegated review and merge to Claude **for the day**:
-  #12 (PR #16, one fix round for AD-2 and AD-17) and #15 (PR #17) are merged; #14
-  implement and #18 plan were running at the end.
+  #12 (PR #16, one fix round for AD-2 and AD-17), #15 (PR #17), #14 (PR #19) and
+  #18 (PR #20) are merged. About $8 across 11 sandbox runs.
 - **Not done:** the team slide deck and the correct-course step for epics 2–12.
 
 ## Decisions reached
@@ -55,6 +55,8 @@
 |---|---|---|---|---|
 | #16 | #12 layout and error format | 2 | Application didn't reference Domain and Api referenced Domain directly (AD-2); `[LoggerMessage]` methods inline instead of `LoggerExtensions.cs` (AD-17) | agent: rules are in the spine but not yet enforced by architecture tests (story 3) |
 | #17 | #15 clock, tenant, readiness | 1 | nothing | — |
+| #19 | #14 dispatcher and validators | 1 | nothing; plan review added `not_found` → 404 and model-binding codes | spine gap caught at plan time |
+| #20 | #18 integration tests | 1 | nothing | — |
 
 ## Rules added to `CLAUDE.md`
 
@@ -81,6 +83,6 @@ None.
 
 ## Next session
 
-Check the open PRs (#14's, #18's). Finish epic 1's backend lane: #13, then stories 5–8.
+Finish epic 1's backend lane: #13, then stories 5–8 (publish each as it becomes ready).
 Start the deploy lane once the accounts exist. The team slide deck and correct-course: the epic envelopes, the three PRD changes, the
 single-tenant change to the tenant epic, and re-sequencing for the demo.
