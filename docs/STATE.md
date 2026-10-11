@@ -131,6 +131,8 @@ Don't let a session assume an answer to any of these.
 | 009 | Note the deciding reason for MongoDB and for Render, for their ADRs in 010 | Done (010) |
 | 010 | Read the architecture document (AD-1–AD-22, Epic 1 proofs) and approve or correct it | Done (011, reviewed by Claude) |
 | 010 | Custom-domain fallback: own a domain, or accept ~$10/year as an NFR-16 exception? | Closed (011): free only; `wwwroot` fallback |
+| 012 | Before story 9 (#30): add the Render deploy hooks as GitHub secrets (Claude guides) | Open |
+| 012 | Before story 11 (#32): create a Grafana Cloud free account (Claude guides) | Open |
 
 ---
 
