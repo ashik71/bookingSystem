@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Contracts;
 
 namespace SlotBook.SharedKernel.Application.Dispatching;
@@ -14,8 +15,16 @@ internal sealed class CommandPipeline<TCommand, TResponse>(IServiceProvider serv
     {
         var typed = (TCommand)command;
         await Dispatcher.ValidateAsync(services.GetServices<IValidator<TCommand>>(), typed, cancellationToken).ConfigureAwait(false);
-        var handler = services.GetService<ICommandHandler<TCommand, TResponse>>()
-            ?? throw new InvalidOperationException($"No command handler is registered for {typeof(TCommand)}.");
-        return await handler.HandleAsync(typed, cancellationToken).ConfigureAwait(false);
+        var execution = services.GetRequiredService<ICommandExecution>();
+        return await execution.RunAsync<TResponse>(
+            typeof(TCommand),
+            services,
+            (attemptServices, token) =>
+            {
+                var handler = attemptServices.GetService<ICommandHandler<TCommand, TResponse>>()
+                    ?? throw new InvalidOperationException($"No command handler is registered for {typeof(TCommand)}.");
+                return handler.HandleAsync(typed, token);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 }

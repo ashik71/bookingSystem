@@ -56,7 +56,10 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<M
             await tracked.Writer.WriteAsync(session, tracked, now, cancellationToken).ConfigureAwait(false);
         }
 
-        await session.CommitTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await CommitRetry.RunAsync(
+            () => session.CommitTransactionAsync(cancellationToken),
+            AmbientAttempt.Current?.Budget,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public void Dispose() => _session?.Dispose();
