@@ -8,7 +8,7 @@ namespace SlotBook.Api.Errors;
 
 #pragma warning disable CA1812 // instantiated by dependency injection
 
-internal sealed partial class SlotBookExceptionHandler(
+internal sealed class SlotBookExceptionHandler(
     IProblemDetailsService problemDetails,
     IHostEnvironment environment,
     ILogger<SlotBookExceptionHandler> logger) : IExceptionHandler
@@ -29,7 +29,7 @@ internal sealed partial class SlotBookExceptionHandler(
         }
         else
         {
-            LogUnhandledException(exception);
+            logger.LogUnhandledException(exception);
             problem.Status = StatusCodes.Status500InternalServerError;
             problem.Extensions["code"] = CommonErrors.InternalError;
             if (environment.IsDevelopment())
@@ -46,7 +46,4 @@ internal sealed partial class SlotBookExceptionHandler(
             Exception = exception,
         });
     }
-
-    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Unhandled exception")]
-    private partial void LogUnhandledException(Exception exception);
 }

@@ -5,7 +5,7 @@ namespace SlotBook.ServiceDefaults;
 
 #pragma warning disable CA1812 // instantiated by UseMiddleware
 
-internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
+internal sealed class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -17,10 +17,7 @@ internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILo
         }
         finally
         {
-            LogRequest(context.Request.Method, context.Request.Path.Value ?? "/", context.Response.StatusCode);
+            logger.LogRequest(context.Request.Method, context.Request.Path.Value ?? "/", context.Response.StatusCode);
         }
     }
-
-    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "{Method} {Path} responded {StatusCode}")]
-    private partial void LogRequest(string method, string path, int statusCode);
 }
