@@ -12,7 +12,7 @@ while IFS= read -r path || [[ -n $path ]]; do
     src/frontend/*)
       frontend=true ;;
     src/backend/* | SlotBook.slnx | global.json | Directory.Build.props | Directory.Packages.props \
-      | .editorconfig | stylecop.json | nuget.config | .dockerignore)
+      | .editorconfig | stylecop.json | BannedSymbols.txt | nuget.config | .dockerignore)
       backend=true ;;
     .github/workflows/ci.yml | .github/scripts/ci-*.sh)
       backend=true

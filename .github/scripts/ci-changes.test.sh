@@ -27,7 +27,7 @@ check "false true" "frontend lockfile" "src/frontend/package-lock.json"
 check "true false" "backend source" "src/backend/SlotBook.Api/Program.cs"
 check "true false" "backend tests" "src/backend/tests/SlotBook.Api.Tests/HealthEndpointTests.cs"
 for f in SlotBook.slnx global.json Directory.Build.props Directory.Packages.props \
-  .editorconfig stylecop.json nuget.config .dockerignore; do
+  .editorconfig stylecop.json BannedSymbols.txt nuget.config .dockerignore; do
   check "true false" "root build file $f" "$f"
 done
 # AC3: both sides, or CI itself
