@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
@@ -20,10 +21,11 @@ namespace SlotBook.SharedKernel.Infrastructure.Persistence;
 /// <para>
 /// The save of a loaded aggregate has <c>{ _id, tenantId, version }</c> in its filter and throws
 /// <see cref="VersionConflictException"/> when it matches nothing. Disposing without a commit aborts
-/// the transaction, so a handler that throws writes nothing.
+/// the transaction, so a handler that throws writes nothing. <see cref="DisposeAsync"/> aborts without
+/// blocking a thread; <see cref="Dispose"/> is the synchronous fallback.
 /// </para>
 /// </summary>
-public sealed class MongoUnitOfWork(IMongoClient client, IClock clock) : IUnitOfWork, IDisposable
+public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, ILogger<MongoUnitOfWork> logger) : IUnitOfWork, IAsyncDisposable, IDisposable
 {
     private static readonly TransactionOptions _transactionOptions = new(
         ReadConcern.Snapshot, ReadPreference.Primary, WriteConcern.WMajority);
@@ -58,6 +60,34 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock) : IUnitOf
     }
 
     public void Dispose() => _session?.Dispose();
+
+    public async ValueTask DisposeAsync()
+    {
+        var session = _session;
+        if (session is null)
+        {
+            return;
+        }
+
+        _session = null;
+        try
+        {
+            if (session.IsInTransaction)
+            {
+                await session.AbortTransactionAsync().ConfigureAwait(false);
+            }
+        }
+#pragma warning disable CA1031 // The server times the transaction out anyway; cleanup must not mask the handler's outcome.
+        catch (Exception exception)
+#pragma warning restore CA1031
+        {
+            logger.LogTransactionAbortFailed(exception);
+        }
+        finally
+        {
+            session.Dispose();
+        }
+    }
 
     internal async Task<IClientSessionHandle> BeginAsync(CancellationToken cancellationToken)
     {

@@ -27,7 +27,11 @@ public abstract class MongoWriteRepository<T>
         _collection = collections.For<T>(collectionName);
     }
 
-    /// <summary>Loads the aggregate, or <see langword="null"/> when it doesn't exist for this tenant.</summary>
+    /// <summary>
+    /// Loads the aggregate, or <see langword="null"/> when it doesn't exist for this tenant.
+    /// Every aggregate returned is written on commit (its version is bumped); use it only for
+    /// aggregates the handler writes, and use a read repository or a query for reads.
+    /// </summary>
     public async Task<T?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
         if (_unitOfWork.Tracked<T>(_collection.Name, id) is { } tracked)
@@ -47,7 +51,11 @@ public abstract class MongoWriteRepository<T>
         _unitOfWork.Add(_collection, aggregate);
     }
 
-    /// <summary>Loads the tenant's aggregates matching <paramref name="filter"/>, for the repository's own queries.</summary>
+    /// <summary>
+    /// Loads the tenant's aggregates matching <paramref name="filter"/>, for the repository's own queries.
+    /// Every aggregate returned is written on commit (its version is bumped, one write per document);
+    /// use it only for aggregates the handler writes, and use a read repository or a query for lists.
+    /// </summary>
     protected async Task<IReadOnlyList<T>> FindAsync(FilterDefinition<BsonDocument> filter, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filter);

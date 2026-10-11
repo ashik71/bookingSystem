@@ -86,6 +86,31 @@ public sealed class UnitOfWorkTests(MongoDatabaseFixture mongo) : IClassFixture<
     }
 
     [Fact]
+    public async Task AHandlerThatThrowsAfterALoadLeavesNoOpenTransaction()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var host = Host("clinic-a");
+        var id = Id("throws-after-load");
+        await CommitAsync(host, notes => notes.Add(new Note(id, "original")));
+
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            (await scope.ServiceProvider.GetRequiredService<NoteWriteRepository>().GetAsync(id, ct)).ShouldNotBeNull();
+            scope.ServiceProvider.GetRequiredService<MongoUnitOfWork>().Session!.IsInTransaction.ShouldBeTrue();
+        }
+
+        // A transaction left open would hold the document and make this write fail with WriteConflict.
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var loaded = await scope.ServiceProvider.GetRequiredService<NoteWriteRepository>().GetAsync(id, ct);
+            loaded!.Edit("changed", NoteKind.Pinned);
+            await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().CommitAsync(ct);
+        }
+
+        (await RawNoteAsync(id))["text"].AsString.ShouldBe("changed");
+    }
+
+    [Fact]
     public async Task WhenOneWriteIsRefusedTheOtherIsNotCommitted()
     {
         var ct = TestContext.Current.CancellationToken;
