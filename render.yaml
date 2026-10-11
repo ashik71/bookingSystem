@@ -1,0 +1,51 @@
+# Render Blueprint for the demo environment (AD-18). Secrets and tenant values are never
+# written here: `sync: false` makes Render ask for them when the Blueprint is applied.
+#
+# Apply (developer):
+#   1. Render dashboard -> New -> Blueprint -> pick this repo and branch `main`.
+#   2. Enter the values Render asks for on slotbook-api: ConnectionStrings__mongodb,
+#      Tenancy__Tenant__Slug, __DisplayName, __Country, __TimeZone (IANA id), __WeekStartDay.
+#   3. If Render gave the API a host other than slotbook-api.onrender.com (name taken, suffix
+#      added), edit the rewrite destination below and sync the Blueprint.
+#   4. The static site's URL is on the slotbook-web page in the dashboard.
+services:
+  - type: web
+    name: slotbook-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./src/backend/Dockerfile
+    dockerContext: .
+    autoDeploy: false
+    healthCheckPath: /health/ready
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Demo
+      - key: PORT # Render routes traffic to $PORT; the image listens on 8080
+        value: "8080"
+      - key: ConnectionStrings__mongodb
+        sync: false
+      - key: Tenancy__Tenant__Slug
+        sync: false
+      - key: Tenancy__Tenant__DisplayName
+        sync: false
+      - key: Tenancy__Tenant__Country
+        sync: false
+      - key: Tenancy__Tenant__TimeZone
+        sync: false
+      - key: Tenancy__Tenant__WeekStartDay
+        sync: false
+
+  - type: web
+    name: slotbook-web
+    runtime: static
+    autoDeploy: false
+    buildCommand: cd src/frontend && npm ci && npm run build
+    staticPublishPath: ./src/frontend/dist/slotbook/browser
+    envVars:
+      - key: NODE_VERSION # package.json engines: node >= 24.15
+        value: "24"
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://slotbook-api.onrender.com/api/*

@@ -56,10 +56,18 @@ public static class ServiceDefaultsExtensions
             });
         }
 
-        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteStatusAsync });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteReadinessAsync });
 
         return app;
     }
+
+    // Names and statuses only: descriptions and exception text could leak secrets.
+    private static Task WriteReadinessAsync(HttpContext context, HealthReport report) =>
+        context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.ToDictionary(entry => entry.Key, entry => entry.Value.Status.ToString()),
+        });
 
     private static Task WriteStatusAsync(HttpContext context, HealthReport report) =>
         context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });

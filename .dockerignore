@@ -1,0 +1,16 @@
+.git
+.github
+.ai
+.claude
+.agents
+_bmad
+_bmad-output
+docs
+sandbox
+src/frontend
+src/backend/tests
+**/bin
+**/obj
+**/*.local.json
+**/appsettings.Development.json
+.env
