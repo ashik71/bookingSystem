@@ -1,0 +1,152 @@
+# tickets.toml — epic-deploy-platform's agreed stories, in build order (DRAFT, 2026-10-11, awaiting the developer's approval).
+# Two lanes after the tracer: the backend lane (2, 3, 5, 6, 7, 8) and the delivery lane (1, 9, 10, 11).
+
+[[entry]]
+id = 1
+type = "story"
+title = "The health page is live on the demo environment"
+description = "Adds the API's Dockerfile and render.yaml (Render Docker web service plus static site that rewrites /api/*, Atlas Free, all free tiers) and deploys epic 0's health page, with the developer creating the Render and Atlas accounts and the secrets."
+verify = "The page at the demo environment's HTTPS address shows the API healthy, and /health/ready reports MongoDB connected."
+covers = []
+after = ["0.1"]
+hitl = true
+risk = "high"
+unknown = "Does Render's rewrite pass POST bodies, headers and Set-Cookie, and the client IP? Answered by the proof in entry 10; if it fails, the API serves the Angular build from wwwroot."
+references = ["architecture-slotbook/architecture-slotbook.md#ad-18"]
+plan_checkpoint = true
+
+[[entry]]
+id = 2
+type = "story"
+title = "The backend has its shared kernel and error format"
+description = "Lays out the four SharedKernel projects, the host, ServiceDefaults and the integration-test project per AD-2 and AD-19, with the dispatcher and validators, Result, problem-details errors, the clock, the configured-tenant ITenantContext, health and readiness endpoints and a correlation ID in every log line."
+verify = "dotnet test passes, and a request to a deliberately failing action returns an RFC 9457 body with a code and traceId and a log line with the same trace id."
+covers = []
+after = ["0.1", "0.3"]
+hitl = false
+risk = "medium"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-2", "architecture-slotbook/architecture-slotbook.md#ad-13", "architecture-slotbook/architecture-slotbook.md#ad-5"]
+plan_checkpoint = true
+
+[[entry]]
+id = 3
+type = "story"
+title = "Architecture rules fail the build"
+description = "Adds the ArchitectureTests project (ArchUnitNET) and BannedApiAnalyzers with the AD-19 inventory rules that exist at this point: layer and reference direction, no public setters, no tenant parameters, banned time APIs and Guid.NewGuid."
+verify = "A deliberate violation of each rule fails the build or the architecture tests with the rule's name."
+covers = []
+after = [2]
+hitl = false
+risk = "low"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-19"]
+
+[[entry]]
+id = 4
+type = "story"
+title = "Integration tests run against a real MongoDB replica set and RabbitMQ"
+description = "Adds the MongoDB and RabbitMQ sidecars to sandbox/run-job.sh and as CI service containers, and a test harness that reads connection strings from environment variables and gives each test class its own database."
+verify = "An integration test that writes a document in a multi-document transaction and publishes a message passes in the sandbox and in CI."
+covers = []
+after = [2, "0.2"]
+hitl = true
+risk = "medium"
+notes = ["The sandbox part (run-job.sh, image) is built on the host in the interactive session; the agent has no Docker access."]
+references = ["architecture-slotbook/architecture-slotbook.md#ad-19"]
+
+[[entry]]
+id = 5
+type = "story"
+title = "Writes go through one unit of work with retries"
+description = "Builds the MongoDB unit of work and repository base: version-checked saves, one transaction with majority and snapshot, the AD-7 retry rules (whole handler, commit-only on unknown result, 3 s budget), the tenant filter, deterministic ids, indexes at startup and the migrations runner with an expiring lock, shown on a sample aggregate."
+verify = "A concurrency test with 50 parallel writers to one guard document ends with exact counts and zero 409s, and a first-use race on a keyed guard creates one document."
+covers = []
+after = [4]
+hitl = false
+risk = "high"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-6", "architecture-slotbook/architecture-slotbook.md#ad-7", "architecture-slotbook/architecture-slotbook.md#ad-9"]
+plan_checkpoint = true
+
+[[entry]]
+id = 6
+type = "story"
+title = "Integration events leave through the outbox and arrive through the inbox"
+description = "Adds AddSlotBookMessaging with MassTransit 8.5.11, the MongoDB bus outbox on the unit of work's session, the inbox in consumers sharing the consume context's session, the consumer retry rules and the event serialization round-trip test."
+verify = "A test commits an aggregate and an event in one transaction, the consumer runs once, and a crash after the handler does not run it twice."
+covers = []
+after = [5]
+hitl = false
+risk = "high"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-10"]
+plan_checkpoint = true
+
+[[entry]]
+id = 7
+type = "story"
+title = "Timed jobs run on a lease and catch up"
+description = "Builds the lease-based job runner with expiring, renewed leases and a catch-up sample job that processes everything due, plus the /internal/jobs endpoint seam kept off until needed."
+verify = "Two hosts run the sample job and only one holds the lease; stopping the host for a minute and restarting it processes every missed tick."
+covers = []
+after = [5]
+hitl = false
+risk = "medium"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-11"]
+
+[[entry]]
+id = 8
+type = "story"
+title = "Cookies, CSRF and security headers are set up"
+description = "Persists Data Protection keys in MongoDB, adds antiforgery with Angular's XSRF header, the two authentication schemes' skeleton and the endpoint-access fitness test, the CSP and HSTS headers in render.yaml, and the OpenAPI document generated and checked in CI."
+verify = "An XSRF token issued before a host restart is accepted after it, and CI fails when openapi.json is stale."
+covers = []
+after = [2, 5]
+hitl = false
+risk = "medium"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-12", "architecture-slotbook/architecture-slotbook.md#ad-13"]
+
+[[entry]]
+id = 9
+type = "story"
+title = "A merge to main deploys the demo environment"
+description = "Adds deploy.yml: after ci succeeds on main it calls the Render deploy hooks by changed path, deploys the API first, waits until /health/ready reports the new commit SHA, then deploys the static site, with Render auto-deploy off."
+verify = "Merging a change deploys it with no manual step, and a deliberately broken readiness check leaves the previous version running."
+covers = []
+after = [1]
+hitl = true
+risk = "medium"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-18"]
+
+[[entry]]
+id = 10
+type = "story"
+title = "The free-tier proofs pass on the demo environment"
+description = "Adds Aspire's AppHost for local runs and runs the Epic 1 proofs on the deployed demo: the /api rewrite with POST, headers, Set-Cookie and client IP, the 24-hour timer through quiet hours with the Synthetics ping, transactions on Atlas Free, zero CSP violations, TLS and encryption at rest; each failing proof applies its free fallback."
+verify = "Each proof in the spine's Epic 1 proofs table is recorded as passed, or its free fallback is merged and the affected ADs are listed in a PR comment."
+covers = []
+after = [6, 7, 8, 9]
+hitl = true
+risk = "high"
+references = ["architecture-slotbook/architecture-slotbook.md#epic-1-proofs"]
+plan_checkpoint = true
+
+[[entry]]
+id = 11
+type = "story"
+title = "Traces, logs and alerts reach Grafana Cloud"
+description = "Exports OpenTelemetry traces, metrics and logs through ServiceDefaults to Grafana Cloud from the demo environment, with the no-personal-data scan, the MongoDB operations counter, the Synthetics check on /health and the AD-18 alert rules."
+verify = "A request on the demo environment shows as a trace in Grafana Cloud, and stopping the service fires the Synthetics alert email."
+covers = []
+after = [9]
+hitl = true
+risk = "low"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-17", "architecture-slotbook/architecture-slotbook.md#ad-18"]
+
+[[entry]]
+id = 12
+type = "story"
+title = "Refactor sweep"
+description = "Cleans up what the epic's plans and review findings deferred, without adding scope."
+verify = "dotnet test and npm test pass and every deferred finding is fixed or recorded."
+covers = []
+after = [3, 10, 11]
+hitl = false
+risk = "low"
