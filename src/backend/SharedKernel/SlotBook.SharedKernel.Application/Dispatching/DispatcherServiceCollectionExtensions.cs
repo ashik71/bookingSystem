@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using SlotBook.SharedKernel.Application.Persistence;
 
 namespace SlotBook.SharedKernel.Application.Dispatching;
 
@@ -17,6 +18,7 @@ public static class DispatcherServiceCollectionExtensions
         services.TryAddScoped<IDispatcher, Dispatcher>();
         services.TryAddScoped(typeof(CommandPipeline<,>));
         services.TryAddScoped(typeof(QueryPipeline<,>));
+        services.TryAddSingleton<ICommandExecution, PassThroughCommandExecution>();
         return services;
     }
 

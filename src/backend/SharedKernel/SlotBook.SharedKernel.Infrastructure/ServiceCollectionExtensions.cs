@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
+using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Tenancy;
 using SlotBook.SharedKernel.Infrastructure.Time;
@@ -48,6 +49,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(provider =>
             provider.GetRequiredService<IMongoClient>().GetDatabase(provider.GetRequiredService<IOptions<MongoOptions>>().Value.Database));
         services.AddSingleton<TenantCollections>();
+        services.AddSingleton<RetryableDuplicateKeys>();
+        services.AddSingleton<ICommandExecution, MongoCommandExecution>();
         services.AddScoped<MongoUnitOfWork>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<MongoUnitOfWork>());
         services.AddHealthChecks()

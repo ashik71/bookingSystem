@@ -6,7 +6,7 @@ namespace SlotBook.Api.Errors;
 /// <summary>Turns a <see cref="Result{T}"/> into an HTTP response (AD-13).</summary>
 internal static class ResultExtensions
 {
-    /// <summary>Success → <paramref name="onSuccess"/>; refusal → problem with its code (404 for <c>not_found</c>, else 422).</summary>
+    /// <summary>Success → <paramref name="onSuccess"/>; refusal → problem with its code (404 for <c>not_found</c>, 409 for <c>concurrency_conflict</c>, else 422).</summary>
     /// <typeparam name="T">The value type.</typeparam>
     /// <param name="result">The result.</param>
     /// <param name="controller">The calling controller; supplies the problem factory.</param>
@@ -29,6 +29,10 @@ internal static class ResultExtensions
         return new ObjectResult(problem) { StatusCode = status };
     }
 
-    internal static int StatusFor(string code) =>
-        code == CommonErrors.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status422UnprocessableEntity;
+    internal static int StatusFor(string code) => code switch
+    {
+        CommonErrors.NotFound => StatusCodes.Status404NotFound,
+        CommonErrors.ConcurrencyConflict => StatusCodes.Status409Conflict,
+        _ => StatusCodes.Status422UnprocessableEntity,
+    };
 }
