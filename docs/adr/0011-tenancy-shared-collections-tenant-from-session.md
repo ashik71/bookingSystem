@@ -38,6 +38,20 @@ For locating the tenant in a request, three options were weighed:
 Fitness tests enforce the route and header rules. The developer chose to remove the
 tenant from routes on 2026-10-10. Spine AD-5 carries the rules.
 
+*Amended 2026-10-11 (developer):* **one deployment serves one tenant for now.**
+Multi-tenancy stays a concept in the data, not in the request:
+
+- The tenant is set in configuration and seeded at startup. `ITenantContext` returns it
+  everywhere (HTTP, consumers, jobs).
+- `tenantId` stays on every tenant-owned document, unique indexes still begin with it,
+  and the repository still applies the filter. Sessions and events still carry it.
+- No route, query string or header carries a tenant. The `X-Tenant` header and the
+  host-name mapping are dropped.
+- The cross-tenant suite runs two hosts, configured for two tenants, on one database.
+
+Serving many tenants later changes only how `ITenantContext` is resolved (session for
+signed-in calls; host name or header for anonymous calls), with no data migration.
+
 ## Consequences
 
 **Positive:** a signed-in request can't even name another tenant; one database; simple
@@ -46,12 +60,16 @@ indexes.
 **Negative:**
 - Isolation lives in code, so the central filter and the cross-tenant suite are
   load-bearing.
-- A forged `X-Tenant` header only reaches public data.
+- A second tenant needs a second deployment until `ITenantContext` resolves per request
+  (amendment 2026-10-11).
 
 **Neutral / follow-up:** each tenant's data can later be copied into its own database
 by `tenantId`.
 
 ## Revisit when
+
+- A second tenant must share one deployment: add per-request resolution to
+  `ITenantContext`.
 
 - A tenant needs contractual isolation (its own database, region or key).
 - One identity must act across tenants, such as a platform operator or a practitioner

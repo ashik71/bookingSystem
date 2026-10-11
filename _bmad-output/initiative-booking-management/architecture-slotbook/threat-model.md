@@ -43,7 +43,7 @@ staff (2), patient sign-in (4), booking core (5), clinic day (7) and anti-impers
 
 ```mermaid
 flowchart LR
-    B["Browser<br/>(untrusted)"] -->|"HTTPS, cookies, X-Tenant on anonymous calls"| S["Render static site<br/>/api rewrite"]
+    B["Browser<br/>(untrusted)"] -->|"HTTPS, cookies"| S["Render static site<br/>/api rewrite"]
     S --> A["SlotBook.Api<br/>(trust starts here: sessions, audiences, tenant filter)"]
     A -->|"TLS + credentials from env"| M[("Atlas")]
     A -->|"AMQPS + credentials from env"| R[["CloudAMQP"]]
@@ -89,8 +89,7 @@ flowchart LR
 
 | Threat | Mitigation | Proven by |
 | --- | --- | --- |
-| **A tenant A session reading or changing tenant B** | No route carries the tenant. Signed-in calls take it only from the session. The repository applies the tenant filter, and handlers never write one. Unique indexes start with `tenantId` (AD-5) | The **cross-tenant suite** on every endpoint (SC-2). Fitness tests on routes and on the `[TenantFromHeader]` marker |
-| **A forged `X-Tenant` header** | It's read only on anonymous endpoints, which serve public or self-scoped data. Signed-in endpoints ignore it (AD-5) | A fitness test plus a cross-tenant test that sends a foreign header with a valid session |
+| **A request reaching another tenant's data** | One deployment serves one configured tenant; no route, query or header carries a tenant. The repository applies the tenant filter, and handlers never write one. Unique indexes start with `tenantId` (AD-5) | The **cross-tenant suite**: two hosts for tenants A and B on one database (SC-2). The fitness test that no action takes a tenant parameter |
 
 ### 5. Staff-account takeover
 
@@ -133,7 +132,7 @@ flowchart LR
 | **The development outbox** exposing OTPs | Only an owner can read `/staff/dev-outbox`; the page exists only with the development channel; entries expire in 24 h; `Production` refuses to start with it (AD-17, AD-18). The demo holds no real patients | The startup-guard test. A role test on the page |
 | **CSV formula injection** in the owner's export | Cells starting with `=`, `+`, `-`, `@`, tab or CR are escaped (Conventions) | A test that a note starting with `=` exports as text |
 | **Data Protection key loss** on restart, invalidating XSRF and Identity tokens | Keys persist in `data_protection_keys` (AD-12) | An epic 1 proof: an XSRF token survives a restart |
-| **A forged `X-Tenant` on the public tenant profile** | The profile returns only public data and never limits or budgets (AD-5) | A test of the profile's field list |
+| **Internal settings leaking through the public tenant profile** | The profile returns only public data and never limits or budgets (AD-5) | A test of the profile's field list |
 
 ## Open items
 

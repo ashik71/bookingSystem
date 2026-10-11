@@ -5,9 +5,9 @@ purpose: build-substrate
 altitude: initiative
 paradigm: 'Modular monolith: Clean Architecture layers, DDD aggregates per module, event-driven integration through a transactional outbox'
 scope: 'The whole SlotBook initiative (BookingManagement, epics 1-12): backend, frontend, data, messaging, background work, identity, environments'
-status: draft
+status: final
 created: '2026-10-10'
-updated: '2026-10-10'
+updated: '2026-10-11'
 binds: [epic-deploy-platform, epic-tenant-and-staff, epic-schedule-and-publication, epic-patient-sign-in, epic-booking-core, epic-notifications, epic-clinic-day, epic-reserved-places, epic-anti-impersonation, epic-launch, epic-announcements, epic-chat]
 sources:
   - _bmad-output/initiative-booking-management/prd-slotbook/prd-slotbook.md
@@ -67,7 +67,7 @@ flowchart TB
     end
     LC["{Module}.Contracts<br/>integration events, public queries,<br/>public commands, audit actions"]
     subgraph SK["SharedKernel"]
-        SKI["SharedKernel.Infrastructure<br/>MongoDB UoW, MassTransit, jobs, sessions"] --> SKA["SharedKernel.Application<br/>dispatcher, IUnitOfWork, clock, writers,<br/>ISmsChannel, IMessageRenderer"] --> SKD["SharedKernel.Domain<br/>AggregateRoot, DomainException"]
+        SKI["SharedKernel.Infrastructure<br/>MongoDB UoW, MassTransit, jobs, Data Protection"] --> SKA["SharedKernel.Application<br/>dispatcher, IUnitOfWork, clock, writers,<br/>ISmsChannel, IMessageRenderer"] --> SKD["SharedKernel.Domain<br/>AggregateRoot, DomainException"]
         SKC["SharedKernel.Contracts<br/>TenantEvent, ICommand, IQuery,<br/>LocalizedText, MobileNumber"]
     end
     Host --> LI
@@ -90,7 +90,7 @@ their module projects.
 
 | Module | Shape | Owns (aggregates and collections) | Built by |
 | --- | --- | --- | --- |
-| `Tenancy` | simple | Tenant (global): **every** FR-39 setting, including per-language texts (home warning, privacy notice, chat response time), reason categories (retire-only), languages, booking limits, ticket prefix | epic 2 |
+| `Tenancy` | simple | Tenant (global; the one configured tenant, AD-5): **every** FR-39 setting, including per-language texts (home warning, privacy notice, chat response time), reason categories (retire-only), languages, booking limits, ticket prefix | epic 2 |
 | `Identity` | layered | Patient, StaffAccount (roles, enabled, password, TOTP, recovery codes), StaffRoster (one per tenant), OtpChallenge, KnownDevice (global lookup), Session (global lookup), OtpBudget (one per tenant per local day) | epics 2, 4 |
 | `Booking` | layered | Week, PractitionerWeek, Slot, Booking, PatientLedger; staff lists, patient lookup, door check, public ticket check; the lapse, reminders, reconciliation and `codeLive` jobs | epics 3, 5, 7, 8, 9 |
 | `Notifications` | simple | Notification, PushSubscription, `dev_outbox`; channels (SMS, push, development); the send job; server-side message templates | epic 6 |
@@ -149,12 +149,14 @@ their module projects.
     collections. The list is closed; adding one needs the developer's sign-off:
     - `Identity.EnsurePatientCommand(mobileNumber) → patientId`: get-or-create, never
       returns an erased patient.
+    - Startup seeding (AD-5), dispatched by the host, each in its own transaction:
+      `Tenancy.EnsureTenantCommand` and `Identity.EnsureFirstOwnerCommand`.
   - **Reactions across modules:** integration events from the publisher's `.Contracts`
     (AD-10).
   - **Caches:** a *caller* may cache display-name queries in process for 60 s, and
-    nothing else. Owner-side caches are listed in their AD: slug and tenant list
-    (AD-5), sessions (AD-12), availability (AD-22). `GetTenantSettingsQuery` is never
-    cached by a caller; if Tenancy caches it, saving settings evicts it (FR-39).
+    nothing else. Owner-side caches are exactly: sessions (AD-12) and availability
+    (AD-22). `GetTenantSettingsQuery` is never cached, by the caller or by Tenancy
+    (FR-39: a saved setting applies at once).
   - A module never copies another module's **mutable** display data (names, texts) into
     its own documents. Immutable facts (ids, dates) may be copied.
   - **Tenant settings** have one owner, Tenancy, read through
@@ -168,9 +170,11 @@ their module projects.
     tenant's country default). Every module uses its E.164 form. Number → patient id is
     `Identity.Contracts.FindPatientByNumberQuery`.
   - **Patient erasure** (FR-44) is one `PatientErased` event from Identity. Each module
-    erases its own data, idempotently. Booking first sets the ledger tombstone (AD-6),
-    then cancels each active booking through the normal Cancel use case (actor
-    `system`, no notification) and de-identifies it, one transaction per booking.
+    erases its own data, idempotently. Identity deletes the patient's sessions and
+    known devices and evicts them from the session cache. Booking first sets the ledger
+    tombstone (AD-6), then cancels each active booking through the normal Cancel use
+    case, with actor `system` and no notification, and de-identifies it. Each booking
+    gets its own transaction.
   - Each module registers itself through one `Add{Module}Module()` in its
     Infrastructure. The host calls one line per module and holds no module logic.
 
@@ -208,54 +212,45 @@ their module projects.
     `Production` refuses (AD-18). The patient's "resend" is the retry. A failed send
     keeps its budget and limit counts and answers 503 `sms_unavailable`.
 
-### AD-5 — Tenant isolation: shared collections, tenant from the session
+### AD-5 — Tenancy: one configured tenant, `tenantId` on every document
 
 - **Binds:** all epics; SC-2; NFR-3
-- **Prevents:** a handler forgetting a tenant filter; a signed-in request naming another
-  tenant; tenant resolution breaking behind the static-site proxy; ad hoc global reads.
+- **Prevents:** a handler forgetting a tenant filter; a request naming a tenant; a
+  later move to many tenants that needs a data migration; ad hoc global reads.
 - **Rule:**
-  - One database. Every tenant-owned document carries `tenantId`. Every unique index on
-    a tenant-owned collection begins with `tenantId`.
-  - **No API route or query string carries the tenant.**
-  - **Signed-in endpoints:** the tenant comes only from the server-side session record
-    (AD-12). An `X-Tenant` header, if sent, is ignored.
-  - **Anonymous tenant-scoped endpoints** read the tenant slug from the **`X-Tenant`
-    header**, carry `[TenantFromHeader]`, and serve only public or self-scoped data.
-    Angular sends the header, mapped from its own host name by configuration. Signing in
-    binds the new session to that tenant.
-  - The current tenant is one ambient `ITenantContext`, set by exactly three entry
-    points: the HTTP pipeline (session or `X-Tenant`), the consumer pipeline (from the
-    event's `TenantId`), and the job runner (once per tenant, from
-    `Tenancy.Contracts.GetActiveTenantIdsQuery`).
-  - The repository and unit of work apply the current tenant filter to every read and
-    write, and stamp `tenantId` on insert. Handlers never write a tenant filter.
+  - **One deployment serves one tenant** (developer, 2026-10-11). The tenant is set in
+    configuration (`Tenancy:Tenant`: slug, display name, country, IANA zone, week start
+    day). No route, query string or header carries a tenant.
+  - **Multi-tenancy stays in the data.** Every tenant-owned document carries
+    `tenantId`, and every unique index on a tenant-owned collection begins with
+    `tenantId`. Sessions and events carry `TenantId` too. Serving many tenants later
+    changes only how `ITenantContext` is resolved, not the data or the handlers.
+  - The current tenant is one `ITenantContext` in `SharedKernel.Application`. It returns
+    the configured tenant's id everywhere: HTTP requests, consumers and jobs.
+  - The repository and unit of work apply the tenant filter to every read and write,
+    and stamp `tenantId` on insert. Handlers never write a tenant filter.
   - **Global collections are exactly:** `tenants`, `sessions`, `known_devices`,
     `leases`, `migrations`, `data_protection_keys`, and MassTransit's outbox and inbox.
-    Their aggregates carry `[GlobalAggregate]`.
-  - **Global reads are exactly:** slug → tenant id and the active-tenant list (cached
-    in process), session by token hash, and known device by secret hash. The last two
-    live in `SharedKernel.Infrastructure`'s session store, which returns the `tenantId`
-    that the HTTP pipeline then sets. **Global writes** are tenant setup, sessions,
-    known devices, leases, migrations and Data Protection keys. Any other global read
-    or write needs an ADR.
-  - **Tenant setup** is a one-off, idempotent host CLI command
-    (`SlotBook.Api seed-tenant`) from configuration: slug, country, IANA zone, week
-    start day, the first owner's login name and a one-time password. It creates the
-    Tenant, its first owner and its StaffRoster. The owner's first sign-in forces TOTP
-    enrolment. No API creates a tenant. Integration tests seed tenant B with the same
-    code.
-  - **Public tenant profile:** one anonymous `[TenantFromHeader]` endpoint returns the
-    display name, IANA time zone, week start day, enabled and default languages,
-    publication day and time, home warning, privacy notice, ticket prefix and chat
-    response time. Never limits, the OTP budget or other internal settings. Angular
-    loads it once at start-up into a `TenantProfile` signal service in `shared/`, and
-    every date display reads the zone from there.
-  - Fitness tests (AD-19) fail the build if: any action takes a tenant route or query
-    parameter; an anonymous tenant-scoped action lacks `[TenantFromHeader]`; a
-    signed-in action carries it; code outside `SharedKernel.Infrastructure` constructs
-    an unfiltered collection; an aggregate is neither tenant-owned nor
-    `[GlobalAggregate]`.
-  - The cross-tenant integration suite covers every endpoint.
+    Their aggregates carry `[GlobalAggregate]`. Each is read and written only by its
+    owner: `tenants` by Tenancy, `sessions` and `known_devices` by Identity, the rest
+    by `SharedKernel.Infrastructure`. Any other global collection needs an ADR.
+  - **Tenant setup at startup:** the host dispatches `Tenancy.EnsureTenantCommand`, then
+    `Identity.EnsureFirstOwnerCommand` (the first owner's login name and a one-time
+    password from configuration, plus the StaffRoster). Both are get-or-create keyed by
+    the slug, so every restart is a no-op. The owner's first sign-in forces TOTP
+    enrolment. No API creates a tenant.
+  - **Public tenant profile:** one anonymous endpoint returns the display name, IANA
+    time zone, week start day, enabled and default languages, publication day and time,
+    home warning, privacy notice, ticket prefix and chat response time. It never
+    returns booking limits, the OTP budget or other internal settings. Angular loads it
+    once at start-up into a `TenantProfile` signal service in `shared/`, and every date
+    display reads the zone from there.
+  - Fitness tests (AD-19) fail the build if: any action takes a tenant route, query or
+    header parameter; code outside `SharedKernel.Infrastructure` constructs an
+    unfiltered collection; an aggregate is neither tenant-owned nor `[GlobalAggregate]`.
+  - **Cross-tenant suite (SC-2):** integration tests start two hosts on one database,
+    configured for tenants A and B, and prove that no endpoint of A reads or changes
+    B's data.
 
 ### AD-6 — One invariant, one guard document
 
@@ -271,7 +266,7 @@ their module projects.
   | --- | --- | --- |
   | Capacity (free / reserved / taken), sequence numbers (`nextSeq`, never decremented), slot status | Slot | book (patient and practitioner), cancel, reserve, release, change capacity, close, publish |
   | Booking limit: active (confirmed) patient bookings, and patient bookings per week, per patient | PatientLedger (one per tenant + patient) | patient book; **every transition out of `confirmed`** of a counted booking (cancel, check-in, lapse, erasure cancel) |
-  | Erasure tombstone | PatientLedger (`erased: true`) | the erasure consumer; **every** booking path (patient and practitioner) loads and writes the ledger and refuses with `not_found` when erased |
+  | Erasure tombstone | PatientLedger (`erased: true`) | the erasure consumer; **every** book path (patient and practitioner) loads and writes the ledger and refuses with `not_found` when erased. Cancels are never refused by the tombstone |
   | Booking state (confirmed, checked_in, cancelled, lapsed) | Booking | check-in, cancel, lapse |
   | Daily OTP budget | OtpBudget (one per tenant + local day) | OTP issue |
   | Publication (a week is published at most once) | Week, plus each of its Slots | publish; add a slot to a published week; add or edit a draft slot |
@@ -282,6 +277,11 @@ their module projects.
     practitioner bookings). Every transition method on Booking returns whether the
     ledger must change; the handler loads and saves the ledger in the same transaction.
     The weekly count drops only on cancel (FR-17), never on check-in or lapse.
+  - **A keyed guard document has a deterministic `_id`** built from its key (AD-8):
+    PatientLedger (patient), PractitionerWeek (practitioner + week start date),
+    OtpBudget (local day), StaffRoster (tenant). It is created get-or-create, so two
+    first writers collide on one `_id` instead of creating two guards. Each row's
+    concurrency test includes a first-use race.
   - A new invariant gets a guard document, a row here and an ADR-0012 amendment before
     any code is written. A story that discovers a cross-document invariant not in this
     table stops and comments on the issue; it does not invent a guard.
@@ -298,10 +298,19 @@ their module projects.
     MassTransit's MongoDB outbox on the same session) and every audit entry and alert in
     **one multi-document transaction**, with write concern `majority` and read concern
     `snapshot`.
-  - A version mismatch, a write conflict, or an error labelled
-    `TransientTransactionError` or `UnknownTransactionCommitResult` **re-runs the whole
-    handler** with fresh loads and jittered backoff, within a **time budget of 3 s**
-    (not an attempt count), so a hot guard document drains instead of failing.
+  - A version mismatch, a `WriteConflict`, an error labelled
+    `TransientTransactionError`, or a `DuplicateKey` on a guard `_id` (AD-6) or on an
+    index AD-8 names **re-runs the whole handler** with fresh loads and jittered
+    backoff, within a **time budget of 3 s** (not an attempt count), so a hot guard
+    document drains instead of failing.
+  - An error labelled `UnknownTransactionCommitResult` means the commit may already
+    have landed. It **retries only the commit**, within the same budget, and never
+    re-runs the handler. The unit of work owns this loop; it doesn't use the driver's
+    `WithTransaction` helper, whose own 120 s loop would nest inside the budget.
+  - **Any write error inside a transaction aborts it** (MongoDB has no
+    catch-and-continue). No code catches a write error and carries on in the same
+    transaction. Insert-if-absent writes (owner alerts, Notifications) use an upsert
+    with `$setOnInsert`, so "already there" is not an error.
   - A re-run that finds the refusal condition returns that refusal (`slot_full`).
     Only an exhausted time budget answers 409 `concurrency_conflict`. The NFR-1 suites
     assert zero 409 responses (FR-15, SM-1).
@@ -310,8 +319,9 @@ their module projects.
   - Handlers never call the MongoDB driver or `IMongoCollection` directly.
   - Every row of AD-6 has a concurrency test against a real replica set (NFR-1).
   - **One transaction never spans two instances of one aggregate type,** except:
-    publication (Week + its Slots), and copy last week (one PractitionerWeek + its new
-    draft Slots, one transaction per practitioner).
+    publication (Week + its Slots); copy last week (the Week, one PractitionerWeek and
+    its new draft Slots, one transaction per practitioner); fan-out Notification
+    batches (AD-21); and deleting a staff account's sessions (AD-12).
   - **Bulk actions** (bulk cancel, close a day) are N independent commands, one
     transaction each, dispatched in sequence by an application service that is not a
     handler. It returns `{ id, outcome: done|refused, code }` per item.
@@ -330,10 +340,16 @@ their module projects.
     status, same body); different slot → 400 `validation_failed`. A `DuplicateKey` on
     this index re-runs the handler, which then finds the original.
   - **Patient identity:** a partial unique index `ux_patients_tenantId_mobileNumber`
-    where `erased: false`. `EnsurePatient` re-runs on `DuplicateKey`.
+    where `erased: false`. A `DuplicateKey` on it re-runs the whole calling handler
+    (AD-7), which then finds the patient through `EnsurePatientCommand`.
   - **Notification identity:** `_id` derived from (source key, recipient patient id,
     channel). The source key is (booking id, kind) for booking notifications, the
     announcement id for fan-out, and the message id for chat notices (AD-21).
+    Notifications are created by upsert with `$setOnInsert`, so a redelivery is a no-op.
+  - **Derived `_id`s** (Notification, OwnerAlert, the keyed guard documents of AD-6) are
+    name-based UUIDs from one `DeterministicId.From(...)` helper in
+    `SharedKernel.Domain`, stored as standard BSON UUID. They are the only exception to
+    Guid v7 (AD-9).
   - **Ticket code:** `ticketCode` stores exactly the 4 canonical upper-case characters;
     the prefix is never stored, and display uses the tenant's **current** prefix.
     `TicketCode.Parse(input)` in `Booking.Domain` (case, spaces, optional prefix and
@@ -343,7 +359,8 @@ their module projects.
     in the tenant's zone. Codes come from a cryptographic RNG; on a duplicate key the
     handler re-runs with a new code.
   - **Same number, same slot:** a partial unique index on `(tenantId, slotId,
-    patientId)` where `holdsPlace: true` (every state except `cancelled`).
+    patientId)` where `holdsPlace: true` (every state except `cancelled`). A
+    `DuplicateKey` on it re-runs the handler, which then refuses 422 `already_booked`.
   - Duplicate-key detection matches the write-error category `DuplicateKey` and the
     expected collection and index, never only the exception type.
 
@@ -356,7 +373,7 @@ their module projects.
   - Use the official `MongoDB.Driver`, with BSON class maps in Infrastructure.
   - Ids are `Guid` version 7 (`Guid.CreateVersion7()` through the clock's
     `TimeProvider`), created in the domain and stored as standard BSON UUID.
-    `Guid.NewGuid()` is banned (AD-19).
+    `Guid.NewGuid()` is banned (AD-19). Derived `_id`s are the one exception (AD-8).
   - Enums are stored as strings.
   - Every aggregate document has `tenantId` (unless global), `version`, and `createdAt`
     / `updatedAt` in UTC.
@@ -364,7 +381,8 @@ their module projects.
   - Indexes are declared in code, one configuration class per aggregate, and created at
     startup.
   - Schema changes are ordered, idempotent C# migrations, run at startup under a lock
-    document and recorded in `migrations`. They follow **expand / contract**: add a
+    document (with an expiry, so a crashed holder doesn't block the next start) and
+    recorded in `migrations`. They follow **expand / contract**: add a
     field, backfill, and remove the old one no earlier than the next release. Data fixes
     go through a migration, never by hand.
 
@@ -384,7 +402,9 @@ their module projects.
     an Application command, and holds no logic.
   - Application stages events through `IUnitOfWork.AddIntegrationEvent`.
     Infrastructure publishes them through MassTransit's **MongoDB bus outbox** on the
-    unit of work's session. Consumers use MassTransit's MongoDB inbox.
+    unit of work's session. Consumers use MassTransit's MongoDB inbox, and in a consumer
+    the unit of work joins the consume context's session: the inbox mark, the handler's
+    writes and any staged events commit in **one** transaction (Epic 1 proof).
   - **Every integration event** leaves through the outbox and is consumed through the
     inbox. There is no in-process event dispatch across modules.
   - **Never an integration event:** the booking write itself, audit entries and owner
@@ -405,7 +425,7 @@ their module projects.
   - `Fault<PatientErased>` is consumed by Audit, which raises `erasure_incomplete`.
   - **Topology:** MassTransit's default publish topology. Receive endpoints are named
     `{module}-{purpose}` in kebab-case. Queues, error queues included, stay under
-    CloudAMQP Free's 100.
+    CloudAMQP Little Lemur's 100.
 
 ### AD-11 — Background work: in-process timers with catch-up semantics
 
@@ -416,8 +436,9 @@ their module projects.
   - Every timed job is a hosted service in the one process (AD-1), run by the lease-based
     job runner in `SharedKernel.Infrastructure` (built in epic 1). Each run **processes
     everything due up to now** from stored state, never "fire at this exact time". It is
-    idempotent, takes a lease document first, runs once per tenant (AD-5), and every
-    write follows AD-6 and AD-7.
+    idempotent, and takes a lease document first. The lease has an expiry and is renewed
+    while the run lasts; a run that fails to renew stops. Every write follows AD-6 and
+    AD-7.
 
     | Job | Owner | Period |
     | --- | --- | --- |
@@ -430,13 +451,16 @@ their module projects.
     | Retention purge | each module | daily, once Q3 is answered |
 
   - **Reminders:** the job selects `confirmed` bookings with
-    `slotStartsAt − leadTime(now) ≤ now < slotStartsAt` and
-    `confirmedAt < slotStartsAt − leadTime`, stages `BookingReminderDue { bookingId }`
+    `slotStartsAt − leadTime(now) ≤ now < slotStartsAt`,
+    `confirmedAt < slotStartsAt − leadTime` and `reminderStagedAt` unset, stages `BookingReminderDue { bookingId }`
     for each, and records `reminderStagedAt` on the Booking. It reads the lead time
     through `GetTenantSettingsQuery` on every run, so a change applies to unsent
     reminders (FR-29).
   - OTP challenges, sessions, known devices and `dev_outbox` entries expire through
-    **TTL indexes**, not jobs.
+    **TTL indexes**, not jobs. The TTL monitor lags by up to a minute or more, so
+    session lookup and OTP verify also compare `expiresAt` with the clock. An OTP
+    challenge is valid for 5 minutes but kept for 1 hour, so FR-3's per-number counts
+    can be read from it (AD-22).
   - The Grafana Synthetics check (AD-18) keeps the service awake.
   - If epic 1's timer proof fails, an external cron calls `/internal/jobs/{job}`; an ADR
     then adds an `internal` authentication scheme (a shared-secret header compared in
@@ -459,7 +483,9 @@ their module projects.
   - **Both audiences use server-side sessions.** A random 256-bit token sits in a
     `Secure; HttpOnly; SameSite=Strict` cookie. Its hash is stored in `sessions` with
     `tenantId`, the subject, the audience, the roles and a TTL. Revoking deletes the
-    record. Lifetimes: staff 12 hours absolute, patient 30 days, known-device secret
+    record. Identity owns `sessions` and `known_devices`; the HTTP pipeline resolves a
+    cookie through `ISessionLookup` (interface in `SharedKernel.Application`,
+    implemented by Identity). Lifetimes: staff 12 hours absolute, patient 30 days, known-device secret
     90 days (FR-4, stored and handled the same way).
   - Cookie names: `__Host-sb_patient`, `__Host-sb_staff`, `__Host-sb_device`.
   - There are **two authentication schemes, `patient` and `staff`.** Every controller
@@ -473,15 +499,16 @@ their module projects.
     The API never returns a full mobile number except on the patient's own endpoints,
     the audited detail view and the owner's CSV export. The cross-patient suite asserts
     this.
-  - **Session lookups** are cached in process for at most 30 s. Revoking or disabling
-    evicts the entry at once (FR-38's 1 minute).
+  - **Session lookups** are cached in process for at most 30 s. Any change to a session
+    record (revoke, disable, fresh OTP) evicts its entry at once, which meets FR-38's
+    1-minute limit.
   - Any change to a staff account's roles or enabled state deletes that account's
     sessions in the same transaction and evicts them.
   - **Fresh OTP:** an action marked `[RequiresFreshOtp]` (Delete my data, FR-44) needs
     an OTP verified for the session's own number within the last 5 minutes, recorded on
     the session. A known-device skip never sets it (FR-4).
   - **CSRF:** Angular's XSRF header is validated by ASP.NET Core antiforgery on every
-    unsafe method.
+    unsafe method. The XSRF token is re-issued on every sign-in and sign-out.
   - **Data Protection keys** persist in the global `data_protection_keys` collection
     through one `IXmlRepository` in `SharedKernel.Infrastructure`, with the application
     name `SlotBook` set explicitly. Epic 1 proves an XSRF token survives a restart.
@@ -537,12 +564,14 @@ their module projects.
   - Instants are stored as UTC BSON dates. The tenant stores an IANA time-zone id.
   - **Week identity** is the natural key `(tenantId, weekStartDate)`, where
     `weekStartDate` is the local `yyyy-MM-dd` of the tenant's week start day; unique
-    index `ux_weeks_tenantId_weekStartDate`. Creating a week is get-or-create, re-run on
-    `DuplicateKey`. Every per-week count is keyed by `weekStartDate`.
+    index `ux_weeks_tenantId_weekStartDate`. Creating a week is get-or-create; a
+    `DuplicateKey` re-runs the whole calling handler (AD-7). Every per-week count is
+    keyed by `weekStartDate`. The tenant's zone and week start day are fixed once the
+    first week exists.
   - **Slot shape:** `localDate`, `localStart` and `localEnd` (`HH:mm`) are the source of
     truth. `startsAt` / `endsAt` (UTC) are computed in the domain from the tenant's zone
-    at creation and never edited. Copy last week copies the local fields and recomputes
-    UTC.
+    whenever the local fields are set (create, edit a draft, copy last week), and never
+    set directly.
   - All "now / today / a day / this week" logic goes through one clock service on
     `TimeProvider` in `SharedKernel.Application`. `DateTime.Now`, `DateTime.UtcNow`,
     `DateTime.Today`, `DateTimeOffset.Now`, `DateTimeOffset.UtcNow` and
@@ -631,6 +660,8 @@ their module projects.
     native .NET runtime), Atlas Free, CloudAMQP Little Lemur and Grafana Cloud Free,
     declared in a Render Blueprint (`render.yaml`). Render and Atlas run in the same
     region, named in `render.yaml`. Production comes later, from the same blueprint.
+    **Every demo service is on a free tier, and no fallback may need money**
+    (developer, 2026-10-11).
   - The static site rewrites `/api/*` to the web service, so the browser sees one
     origin (proof and fallback in Epic 1 proofs).
   - **Environments** are `Development`, `Demo` and `Production`
@@ -640,8 +671,8 @@ their module projects.
   - **Deploy:** Render auto-deploy is off (`autoDeploy: false`). A `deploy.yml` workflow
     runs on `workflow_run` of `ci` succeeding on `main` and calls each service's deploy
     hook (hook URLs are GitHub secrets), filtered by path as in ADR-0006. When both
-    sides changed, it deploys the API, waits for `/health/ready` on the new version,
-    then deploys the static site. `healthCheckPath: /health/ready`, so a failed deploy
+    sides changed, it deploys the API, waits until `/health/ready` reports the new
+    commit SHA (the API returns its build SHA), then deploys the static site. `healthCheckPath: /health/ready`, so a failed deploy
     leaves the previous version running.
   - **Security headers:** the static site's headers in `render.yaml` set HSTS and the
     document CSP (`default-src 'self'`; `style-src 'self' 'unsafe-inline'`, never for
@@ -653,7 +684,8 @@ their module projects.
     `/health` every 5 minutes failing twice in a row; 5xx rate above 1% over 5 minutes;
     MongoDB operations above 70/s over 1 minute (from the API's own counter; Atlas Free
     caps at 100/s and 10 GB in / 10 GB out per rolling 7 days); outbox backlog above
-    1,000 or any message in an `_error` queue; CloudAMQP queued messages above 5,000.
+    1,000 or any message in an `_error` queue; CloudAMQP queued messages above 5,000;
+    Atlas storage above 70% of Free's 512 MB.
   - **Incident path:** alert → developer → Render rollback to the previous deploy.
     Data fixes go through a migration (AD-9).
 
@@ -693,7 +725,7 @@ their module projects.
     | Project references and layer direction (AD-2, AD-3) | ArchUnitNET + project-reference scan | ArchitectureTests |
     | Aggregate properties have no public setter; no mediator package; controllers depend only on the dispatcher (AD-4) | ArchUnitNET | ArchitectureTests |
     | Public commands match AD-3's list | ArchUnitNET | ArchitectureTests |
-    | Tenant routes, `[TenantFromHeader]`, unfiltered collections, `[GlobalAggregate]` (AD-5) | ArchUnitNET + endpoint scan | ArchitectureTests |
+    | No tenant route, query or header; unfiltered collections; `[GlobalAggregate]` (AD-5) | ArchUnitNET + endpoint scan | ArchitectureTests |
     | One scheme or `[AllowAnonymous]` per action (AD-12) | endpoint scan | ArchitectureTests |
     | Error codes globally unique (AD-13) | reflection | ArchitectureTests |
     | Banned time APIs and `Guid.NewGuid()` (AD-9, AD-14) | BannedApiAnalyzers, root `BannedSymbols.txt` | build |
@@ -720,7 +752,7 @@ their module projects.
 - **Rule:**
   - Any module records audit entries and owner alerts through `IAuditWriter.Record(...)`
     and `IOwnerAlertWriter.Raise(kind, dedupKey)` in `SharedKernel.Application`, inside
-    its own transaction. Audit implements both. These are the only writes across
+    the calling handler's transaction (AD-7). Audit implements both. These are the only writes across
     module boundaries (AD-3).
   - **Audit entry:** `{ tenantId, at (UTC), actor { kind: staff|patient|system, id?,
     roles[] }, action, target { type, id }, details }`. `action` is
@@ -733,22 +765,23 @@ their module projects.
     database role adds enforcement if Atlas allows it (Deferred).
   - **Owner alerts:** `OwnerAlertKind` is an enum in `SharedKernel.Application` next to
     the writer; adding a kind is a one-line change there. The alert `_id` is derived
-    from `(tenantId, kind, dedupKey)`; a duplicate key means "already raised" (AD-8).
+    from `(tenantId, kind, dedupKey)` and written by upsert with `$setOnInsert`, so
+    raising it again is a no-op and never aborts the caller's transaction (AD-7).
     The writer also logs every alert through one `[LoggerMessage]` (FR-45).
 
     | Kind | Raised by | Dedup key |
     | --- | --- | --- |
     | `otp_budget_exhausted` | Identity | the tenant's local date |
-    | `count_drift` | Booking reconciliation | slot id + local date |
+    | `count_drift` | Booking reconciliation (alerts only; it never corrects counts) | `slot:{id}` or `ledger:{patientId}`, + local date |
     | `notification_failed` | Notifications send job | notification id |
     | `erasure_incomplete` | Audit (`Fault<PatientErased>`) | patient id |
-    | `sms_unavailable` | `ISmsChannel`, in its own unit of work (provider failure or quota refusal) | the tenant's local date |
+    | `sms_unavailable` | `ISmsChannel`, in a separate unit of work (provider failure or quota refusal) | the tenant's local date |
 
   - **Refusals decided outside a handler** (401 or 403 on signed-in endpoints, 429 on
     staff and patient partitions) are recorded by `IRefusalRecorder` in `SlotBook.Api`
-    through `IAuditWriter` in its own unit of work. It keeps an in-process set of
-    (tenant, actor, action, UTC minute) keys and skips the write when the key is
-    present, so a flood costs at most one write per actor per minute (FR-24).
+    through `IAuditWriter` in a separate unit of work. It keeps an in-process set of
+    (tenant, actor, action, UTC minute) keys, dropped when the minute rolls over, and
+    skips the write when the key is present, so a flood costs at most one write per actor per minute (FR-24).
     Anonymous refusals are logged and counted as a metric, never audited.
 
 ### AD-21 — The notification pipeline
@@ -763,19 +796,26 @@ their module projects.
   - Consumers only **create** Notifications (status `pending`, `_id` per AD-8), one per
     recipient and channel. The fan-out consumer resolves recipients once through
     `Booking.Contracts.GetPatientsWithActiveBookingsQuery(filter)` and creates the
-    records directly in batched transactions, never one outbox message per patient.
+    records directly in batched transactions (upserts, AD-8), never one outbox message
+    per patient. A redelivered fan-out re-runs every batch harmlessly.
     The announcement preview count uses the same query; ClinicContent writes one audit
     entry per announcement notify at confirm, with the recipient count.
-  - The **send job** (AD-11) claims due Notifications ordered by priority, then
-    `nextAttemptAt`: it marks `sending` with `claimedAt` and commits; resolves contact
+  - The **send job** (AD-11) claims at most 20 due Notifications per run, ordered by
+    priority, then `nextAttemptAt`: it marks `sending` with `claimedAt` and commits; resolves contact
     data through `Identity.Contracts.GetPatientContactQuery` and booking details through
     `Booking.Contracts.GetBookingForNotificationQuery`; renders through
     `IMessageRenderer`; sends; then records `sent`, or `pending` with `attempts + 1` and
-    a back-off that fits 6 attempts within 30 minutes. After the last attempt: `failed`
-    and `notification_failed`. A patient resolved as gone marks it `cancelled` and sends
-    nothing.
+    a back-off that fits 6 attempts within 30 minutes. After the sixth failed attempt,
+    the job sets the Notification to `failed` and raises the `notification_failed` owner
+    alert. If the patient no longer exists, or the booking no longer matches the kind
+    (a reminder for a booking that is no longer `confirmed`), the job marks it
+    `cancelled` and sends nothing.
+  - Each provider call times out after 10 s, so a claimed batch finishes well inside
+    2 minutes. The send job is not a retried handler (AD-7): after a send it records the
+    outcome with a plain update and never sends again because a write failed.
   - A Notification in `sending` whose `claimedAt` is older than 2 minutes is a crashed
-    send: it is marked `failed` with the alert, **never resent** (FR-27, at most once).
+    send: it is marked `failed` with the `notification_failed` owner alert, **never
+    resent** (FR-27, at most once). Only the run that holds the lease does this sweep.
   - Two receive endpoints (`notifications-high`, `notifications-low`) keep a fan-out
     burst from delaying the creation of confirmation records. The OTP is not on either
     (AD-4).
@@ -801,29 +841,35 @@ their module projects.
     | Staff sign-in | 10 per 15 minutes per IP |
     | OTP verify | 20 per hour per IP (on top of FR-2's 5 per challenge) |
 
-  - **Every per-number and per-day limit** (FR-3 sends per number, FR-26 checks per
-    number, FR-32 reports per day) is counted from stored documents, so a restart
-    can't reset it, and answers 429 with its own code and `Retry-After`. "A day" is a
-    calendar day in the tenant's zone.
+  - **Every per-number and per-day limit** is stored in MongoDB, so a restart can't
+    reset it, and answers 429 with a limit-specific error code and `Retry-After`. "A
+    day" is a calendar day in the tenant's zone.
+    - FR-3 sends per number are counted from the number's OTP challenges (kept 1 hour,
+      AD-11) inside the OTP-issue transaction, which the OtpBudget guard serializes
+      (AD-6).
+    - FR-26 checks per number and FR-32 reports per day use one counter document per
+      key and window (deterministic `_id`, AD-8; TTL at least the window), raised by a
+      single conditional upsert `$inc` while `count < limit`. One atomic write, so no
+      guard document or transaction is needed.
   - The daily **OTP budget is a business limit**: 422 `otp_budget_exhausted`, never 429
     (NFR-6).
   - **Availability cache:** anonymous availability is served from an in-process cache
-    per tenant and week. Every command that writes a Slot or Week evicts that entry
-    after commit (FR-9, FR-13); a 5-second TTL is only the backstop. A booking
+    per week. Every command that writes a Slot or Week evicts that week's entry after
+    commit (FR-9, FR-13); a 5-second TTL is only the backstop. A booking
     re-checks every rule at commit.
 
 ## Epic 1 proofs
 
-Each proof gates other ADs. If one fails, the fallback applies and the listed ADs
-change.
+Each proof gates other ADs. If one fails, its fallback applies and the ADs in its
+"ADs that change" column change. Every fallback is free (AD-18).
 
 | Proof | Gates | Fallback | ADs that change |
 | --- | --- | --- | --- |
-| The `/api/*` rewrite passes POST bodies, headers and `Set-Cookie` | AD-12, AD-15, AD-18 | A custom domain, API on a subdomain of the same site (`onrender.com` is a public suffix, so `SameSite=Strict` cookies don't cross two of its subdomains). See Open Questions | AD-15, AD-18 |
-| The real client IP arrives through the rewrite in a known header | AD-22 | The custom domain, before epic 4 | AD-22 |
+| The `/api/*` rewrite passes POST bodies, headers and `Set-Cookie` | AD-12, AD-15, AD-18 | The API serves the Angular build from `wwwroot` on the one web service, and the static site is dropped: still one origin, still free | AD-1, AD-18 (CSP and HSTS move to the API) |
+| The real client IP arrives through the rewrite in a known header | AD-22 | The same `wwwroot` fallback, before epic 4 | AD-22 |
 | A timer fires through quiet hours with the Synthetics ping | AD-11 | External cron calling `/internal/jobs/{job}` | AD-11, AD-12 |
-| Unit of work and MassTransit's outbox share one MongoDB session and commit together | AD-7, AD-10 | A hand-built outbox on the same session (reference P-5) | AD-10 |
-| Multi-document transactions work on Atlas Free | AD-6, AD-7 | A paid tier | AD-18 |
+| Unit of work and MassTransit's outbox share one MongoDB session and commit together; in a consumer, the inbox mark and the handler's writes commit together, so a crash after the handler never applies it twice | AD-7, AD-10 | A hand-built outbox and inbox on the same session (pattern P-5 in `input-reference-architecture.md`) | AD-10 |
+| Multi-document transactions work on Atlas Free | AD-6, AD-7 | — (must pass; Atlas Free is a replica set) | — |
 | The deployed app loads with zero CSP violations | AD-18 | Adjust `style-src` only, never `script-src` | AD-18 |
 | An XSRF token survives a service restart | AD-12 | — (must pass) | — |
 | TLS on every hop and Atlas encryption at rest (NFR-10) | AD-18 | — (configuration review) | — |
@@ -832,7 +878,7 @@ change.
 
 | Question | Blocks | Owner |
 | --- | --- | --- |
-| Custom-domain fallback: does the developer own a domain, or is a ~$10/year domain an accepted exception to NFR-16 ($0)? | Only if a rewrite proof fails | Developer, before epic 1 ends |
+| None. The custom-domain question closed on 2026-10-11: no paid fallback; the rewrite fallback is the `wwwroot` one | — | — |
 
 ## Consistency Conventions
 
@@ -958,7 +1004,7 @@ sequenceDiagram
 
 ```text
 src/backend/
-  SlotBook.Api/                                   # the one host: Program.cs, Controllers/{Module}/, Auth/, Errors/, IClientIp, IRefusalRecorder, rate limiter, seed-tenant CLI
+  SlotBook.Api/                                   # the one host: Program.cs, Controllers/{Module}/, Auth/, Errors/, IClientIp, IRefusalRecorder, rate limiter, startup tenant seeding
   SlotBook.ServiceDefaults/                       # OpenTelemetry, health
   SlotBook.AppHost/                               # Aspire, local only
   SharedKernel/
@@ -966,7 +1012,7 @@ src/backend/
     SlotBook.SharedKernel.Contracts/              # TenantEvent, ICommand/IQuery, LocalizedText, MobileNumber
     SlotBook.SharedKernel.Application/            # dispatcher, Result, IUnitOfWork, ITenantContext, clock, CommonErrors,
                                                   # IAuditWriter, IOwnerAlertWriter + OwnerAlertKind, ISmsChannel, IMessageRenderer
-    SlotBook.SharedKernel.Infrastructure/         # MongoDB UoW + repository base, session store, Data Protection repository,
+    SlotBook.SharedKernel.Infrastructure/         # MongoDB UoW + repository base, Data Protection repository,
                                                   # AddSlotBookMessaging, migrations runner, lease-based job runner
   Modules/
     Booking/                                      # layered
@@ -1005,7 +1051,7 @@ render.yaml          # Render Blueprint: demo environment
 | Notifications, reminders (FR-27 to FR-29) | Notifications sends; the reminders job is in Booking | AD-4, AD-8, AD-10, AD-11, AD-16, AD-21 |
 | Clinic cancels, door check, check-in, lists, lookup (FR-20, FR-24, FR-25, FR-40, FR-41) | Booking | AD-6, AD-7 (bulk), AD-8 (`TicketCode.Parse`), AD-12 (visibility, masking), AD-20, AD-22 |
 | Reserved places, practitioner bookings (FR-12 to FR-14) | Booking (Slot); `EnsurePatient` in Identity | AD-3, AD-6, AD-7 |
-| Official contacts, home warning, fraud report, public ticket check (FR-26, FR-30 to FR-32) | ClinicContent (contacts, fraud reports); home warning in Tenancy settings; public check in Booking | AD-5 (anonymous, `X-Tenant`, tenant profile), AD-8, AD-22 |
+| Official contacts, home warning, fraud report, public ticket check (FR-26, FR-30 to FR-32) | ClinicContent (contacts, fraud reports); home warning in Tenancy settings; public check in Booking | AD-5 (tenant profile), AD-8, AD-22 |
 | Launch readiness (accessibility, language completeness) | frontend | AD-15, AD-16, AD-19 |
 | Announcements (FR-33) | ClinicContent; fan-out in Notifications | AD-8, AD-20, AD-21; image storage deferred |
 | Chat, canned replies, reply notification (FR-34 to FR-37) | Chat | AD-3, AD-10, AD-21; transport deferred |
