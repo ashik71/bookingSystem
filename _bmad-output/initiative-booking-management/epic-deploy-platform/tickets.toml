@@ -87,7 +87,8 @@ covers = []
 after = [4]
 hitl = false
 risk = "high"
-references = ["architecture-slotbook/architecture-slotbook.md#ad-6", "architecture-slotbook/architecture-slotbook.md#ad-7", "architecture-slotbook/architecture-slotbook.md#ad-9"]
+references = ["architecture-slotbook/architecture-slotbook.md#ad-6", "architecture-slotbook/architecture-slotbook.md#ad-7", "architecture-slotbook/architecture-slotbook.md#ad-9", "architecture-slotbook/architecture-slotbook.md#ad-5"]
+notes = ['From #13: this story creates the repository base, so the AD-5 rule "no unfiltered collection; every aggregate is tenant-owned or [GlobalAggregate]" now has code to check. Add it to SlotBook.ArchitectureTests with a fixture violation, following the existing rules (rule name in the failure message, a "fails on a violation" test).']
 plan_checkpoint = true
 
 [[entry]]
