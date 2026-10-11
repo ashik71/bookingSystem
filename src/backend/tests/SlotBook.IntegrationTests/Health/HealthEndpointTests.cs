@@ -38,34 +38,14 @@ public class HealthEndpointTests(SlotBookApiFactory factory) : IClassFixture<Slo
     }
 
     [Fact]
-    public async Task ReadyIs503UnhealthyWhenMongoDbUnreachable()
+    public void StartupFailsWhenMongoDbIsUnreachable()
     {
         using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo };
-        var client = unreachable.CreateClient();
         var clock = Stopwatch.StartNew();
 
-        var response = await client.GetAsync("/health/ready", TestContext.Current.CancellationToken);
+        Should.Throw<Exception>(() => unreachable.CreateClient());
 
-        clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
-        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.ServiceUnavailable);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        body.ShouldBe("""{"status":"Unhealthy","checks":{"mongodb":"Unhealthy"}}""");
-        body.ShouldNotContain("127.0.0.1");
-    }
-
-    [Theory]
-    [InlineData("/health")]
-    [InlineData("/api/health")]
-    public async Task LivenessStaysHealthyWhenMongoDbUnreachable(string path)
-    {
-        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo };
-        var client = unreachable.CreateClient();
-
-        var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        body.ShouldBe("""{"status":"Healthy"}""");
+        clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(15));
     }
 
     [Fact]

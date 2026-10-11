@@ -39,6 +39,16 @@ internal sealed class MongoOptionsValidator : IValidateOptions<MongoOptions>
             return ValidateOptionsResult.Fail($"{MongoOptions.DatabaseKey} is not a valid MongoDB database name");
         }
 
+        if (options.SchemaTimeoutSeconds <= 0)
+        {
+            return ValidateOptionsResult.Fail($"{MongoOptions.SchemaTimeoutKey} must be positive");
+        }
+
+        if (options.MigrationLockExpirySeconds <= 0)
+        {
+            return ValidateOptionsResult.Fail($"{MongoOptions.MigrationLockExpiryKey} must be positive");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

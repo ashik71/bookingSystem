@@ -18,6 +18,12 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
 
     public CapturingLoggerProvider Logs { get; } = new();
 
+    /// <summary>Extra services, for example a test index configuration or migration.</summary>
+    public Action<IServiceCollection>? ConfigureTestServices { get; init; }
+
+    /// <summary>Extra configuration, for example <c>Mongo:MigrationLockExpirySeconds</c>.</summary>
+    public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
+
     /// <summary><c>Mongo:Database</c>; <see langword="null"/> keeps the default of appsettings.json.</summary>
     public string? MongoDatabase { get; init; }
 
@@ -60,6 +66,11 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             builder.UseSetting("Mongo:Database", MongoDatabase);
         }
 
+        foreach (var (key, value) in Settings)
+        {
+            builder.UseSetting(key, value);
+        }
+
         if (TenantSlug is not null)
         {
             builder.UseSetting("Tenancy:Tenant:Slug", TenantSlug);
@@ -76,6 +87,7 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             services.AddScoped<GlobalNoteWriteRepository>();
             services.AddScoped<GuardCounterWriteRepository>();
             services.AddSingleton<ConflictAttempts>();
+            ConfigureTestServices?.Invoke(services);
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
         });
