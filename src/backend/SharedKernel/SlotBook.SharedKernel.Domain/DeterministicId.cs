@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -33,4 +34,24 @@ public static class DeterministicId
 
     /// <summary>The tenant id for a configured slug (AD-5).</summary>
     public static Guid ForTenant(string slug) => From(SlotBookNamespace, "tenant:" + slug);
+
+    /// <summary>
+    /// The <c>_id</c> of a keyed guard document (AD-6, AD-8). The tenant is part of the name because
+    /// <c>_id</c> is unique across the whole collection, not per tenant. Each part is length-prefixed,
+    /// so no choice of kind and key can produce another's name.
+    /// </summary>
+    public static Guid ForGuard(Guid tenantId, string kind, params string[] key)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+        ArgumentNullException.ThrowIfNull(key);
+
+        var name = new StringBuilder("guard:").Append(tenantId.ToString("D", CultureInfo.InvariantCulture));
+        foreach (var part in key.Prepend(kind))
+        {
+            ArgumentNullException.ThrowIfNull(part);
+            name.Append(':').Append(part.Length.ToString(CultureInfo.InvariantCulture)).Append(':').Append(part);
+        }
+
+        return From(SlotBookNamespace, name.ToString());
+    }
 }
