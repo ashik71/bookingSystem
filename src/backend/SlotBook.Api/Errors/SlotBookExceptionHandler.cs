@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SlotBook.SharedKernel.Application;
+using SlotBook.SharedKernel.Application.Validation;
 using SlotBook.SharedKernel.Domain;
 
 namespace SlotBook.Api.Errors;
@@ -22,9 +23,15 @@ internal sealed class SlotBookExceptionHandler(
         ArgumentNullException.ThrowIfNull(exception);
 
         var problem = new ProblemDetails();
-        if (exception is DomainException domain)
+        if (exception is ValidationFailedException validation)
         {
-            problem.Status = StatusCodes.Status422UnprocessableEntity;
+            problem.Status = StatusCodes.Status400BadRequest;
+            problem.Extensions["code"] = CommonErrors.ValidationFailed;
+            problem.Extensions["errors"] = validation.Errors;
+        }
+        else if (exception is DomainException domain)
+        {
+            problem.Status = ResultExtensions.StatusFor(domain.Code);
             problem.Extensions["code"] = domain.Code;
         }
         else

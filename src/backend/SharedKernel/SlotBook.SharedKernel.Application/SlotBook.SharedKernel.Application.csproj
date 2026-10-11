@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../SlotBook.SharedKernel.Domain/SlotBook.SharedKernel.Domain.csproj" />
     <ProjectReference Include="../SlotBook.SharedKernel.Contracts/SlotBook.SharedKernel.Contracts.csproj" />
   </ItemGroup>

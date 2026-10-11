@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SlotBook.IntegrationTests.TestSupport;
+using SlotBook.SharedKernel.Application.Dispatching;
 
 namespace SlotBook.IntegrationTests;
 
@@ -30,7 +31,11 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
         }
 
         builder.ConfigureServices(services =>
-            services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly));
+        {
+            services.AddSingleton<HandlerProbe>();
+            services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
+            services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
+        });
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
     }
 }
