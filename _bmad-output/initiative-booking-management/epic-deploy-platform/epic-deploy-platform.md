@@ -100,3 +100,4 @@ and 10.
   `/internal/jobs/{job}` (spine AD-11).
 - Decision: scope is the team demo, one tenant, free hosting only; the `/api` rewrite
   fallback is the API serving the Angular build from `wwwroot` (developer, 2026-10-11).
+- Decision: story 2 is split in three after its plan came back at about 45 files: 2 (layout and error format), 13 (dispatcher and validators), 14 (clock, tenant, readiness). Answers to the plan's questions: the failing test action lives in the test project; one request log line without bodies or query strings; the tenant id is a UUID derived from the slug; `/health/ready` has no checks until MongoDB arrives; the frontend moves to `/api/health` in story 1; no other shared-kernel types yet; validation codes come from one map; 405 and 415 are 400 `validation_failed` (developer, 2026-10-11).

@@ -18,15 +18,39 @@ plan_checkpoint = true
 [[entry]]
 id = 2
 type = "story"
-title = "The backend has its shared kernel and error format"
-description = "Lays out the four SharedKernel projects, the host, ServiceDefaults and the integration-test project per AD-2 and AD-19, with the dispatcher and validators, Result, problem-details errors, the clock, the configured-tenant ITenantContext, health and readiness endpoints and a correlation ID in every log line."
+title = "The backend has its project layout and error format"
+description = "Lays out the four SharedKernel projects, ServiceDefaults, the integration-test and SharedKernel test projects per AD-2 and AD-19, with RFC 9457 problem-details errors (DomainException, CommonErrors) and the W3C trace id on every log line."
 verify = "dotnet test passes, and a request to a deliberately failing action returns an RFC 9457 body with a code and traceId and a log line with the same trace id."
 covers = []
 after = ["0.1", "0.3"]
 hitl = false
 risk = "medium"
-references = ["architecture-slotbook/architecture-slotbook.md#ad-2", "architecture-slotbook/architecture-slotbook.md#ad-13", "architecture-slotbook/architecture-slotbook.md#ad-5"]
+references = ["architecture-slotbook/architecture-slotbook.md#ad-2", "architecture-slotbook/architecture-slotbook.md#ad-13", "architecture-slotbook/architecture-slotbook.md#ad-17"]
 plan_checkpoint = true
+
+[[entry]]
+id = 13
+type = "story"
+title = "Commands and queries go through the dispatcher and its validators"
+description = "Adds ICommand and IQuery, our own dispatcher with assembly scanning, FluentValidation validators run first with a code map, Result, and the 400 and 422 mappings."
+verify = "A command with an invalid field returns 400 validation_failed with errors.{field} codes and its handler never runs; a Result.Refused returns 422 with its code."
+covers = []
+after = [2]
+hitl = false
+risk = "medium"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-4", "architecture-slotbook/architecture-slotbook.md#ad-13"]
+
+[[entry]]
+id = 14
+type = "story"
+title = "The clock, the configured tenant and readiness"
+description = "Adds IClock on TimeProvider, the Tenancy:Tenant options validated on start with a UUID derived from the slug as ITenantContext, and the /api/health and /health/ready endpoints."
+verify = "Startup fails when Tenancy:Tenant is missing, ITenantContext returns the configured tenant, and /health, /api/health and /health/ready answer 200."
+covers = []
+after = [2]
+hitl = false
+risk = "low"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-5", "architecture-slotbook/architecture-slotbook.md#ad-14"]
 
 [[entry]]
 id = 3
@@ -35,7 +59,7 @@ title = "Architecture rules fail the build"
 description = "Adds the ArchitectureTests project (ArchUnitNET) and BannedApiAnalyzers with the AD-19 inventory rules that exist at this point: layer and reference direction, no public setters, no tenant parameters, banned time APIs and Guid.NewGuid."
 verify = "A deliberate violation of each rule fails the build or the architecture tests with the rule's name."
 covers = []
-after = [2]
+after = [13, 14]
 hitl = false
 risk = "low"
 references = ["architecture-slotbook/architecture-slotbook.md#ad-19"]

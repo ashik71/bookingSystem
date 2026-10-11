@@ -5,7 +5,7 @@ id: 3
 type: story
 title: "Architecture rules fail the build"
 parent: epic-deploy-platform
-after: [2]
+after: [13, 14]
 hitl: false
 risk: low
 ---
