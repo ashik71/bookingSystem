@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
+using SlotBook.SharedKernel.Infrastructure.Persistence;
 
 namespace SlotBook.SharedKernel.Infrastructure.Messaging;
 
@@ -13,6 +14,8 @@ public static class MessagingServiceCollectionExtensions
 {
     /// <summary>Optional prefix for endpoint (queue) names. Tests use it to keep their queues apart.</summary>
     public const string EndpointPrefixKey = "Messaging:EndpointPrefix";
+
+    private const string OutboxDocumentNamespace = "MassTransit.MongoDbIntegration.Outbox";
 
     /// <summary>
     /// Registers MassTransit over RabbitMQ with the MongoDB bus outbox (AD-10, AD-7). Events staged with
@@ -70,6 +73,17 @@ public static class MessagingServiceCollectionExtensions
                 rabbit.ConfigureEndpoints(context);
             });
         });
+
+        // Startup creates the outbox and inbox collections under the names MassTransit resolves (AD-9).
+        foreach (var collectionType in services
+                     .Select(descriptor => descriptor.ServiceType)
+                     .Where(type => type.IsGenericType
+                         && type.GetGenericTypeDefinition() == typeof(IMongoCollection<>)
+                         && string.Equals(type.GenericTypeArguments[0].Namespace, OutboxDocumentNamespace, StringComparison.Ordinal))
+                     .ToList())
+        {
+            services.AddSingleton<IIndexConfiguration>(provider => new BusOutboxCollection(provider, collectionType));
+        }
 
         // MassTransit's own context starts transactions of its own. Ours runs on the unit of work's session.
         services.RemoveAll<MassTransit.MongoDbIntegration.MongoDbContext>();

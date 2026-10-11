@@ -9,9 +9,9 @@ namespace SlotBook.IntegrationTests.TestSupport.Messaging;
 /// </summary>
 internal static class OutboxDrain
 {
-    public const string MessageCollection = "outbox.message";
+    public const string MessageCollection = "outbox.messages";
 
-    public const string StateCollection = "outbox.state";
+    public const string StateCollection = "outbox.states";
 
     public static async Task WaitAsync(IMongoDatabase database, TimeSpan timeout, CancellationToken cancellationToken)
     {
