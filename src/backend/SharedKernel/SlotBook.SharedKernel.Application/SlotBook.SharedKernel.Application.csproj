@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../SlotBook.SharedKernel.Domain/SlotBook.SharedKernel.Domain.csproj" />
+    <ProjectReference Include="../SlotBook.SharedKernel.Contracts/SlotBook.SharedKernel.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
