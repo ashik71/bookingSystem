@@ -24,6 +24,12 @@ public sealed class SchemaTests(MongoDatabaseFixture mongo) : IClassFixture<Mong
 
         Start(NewFactory(database, new MigrationLog()));
 
+        // MassTransit's outbox and inbox collections exist before any publish.
+        var collections = await (await mongo.Client.GetDatabase(database).ListCollectionNamesAsync(cancellationToken: ct)).ToListAsync(ct);
+        collections.ShouldContain("outbox.messages");
+        collections.ShouldContain("outbox.states");
+        collections.ShouldContain("inbox.states");
+
         var first = await IndexNamesAsync(database, ct);
         first.ShouldBe(["_id_", "ix_schema_samples_kind", "ux_schema_samples_key"], ignoreOrder: true);
 

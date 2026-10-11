@@ -106,6 +106,7 @@ jobs:
           docker run -d --name api --network host \
             -e ASPNETCORE_ENVIRONMENT=Demo \
             -e ConnectionStrings__mongodb='mongodb://localhost:27017/?replicaSet=rs0' \
+            -e ConnectionStrings__rabbitmq='amqp://guest:guest@localhost:5672/' \
             -e Tenancy__Tenant__Slug=smoke-clinic \
             -e Tenancy__Tenant__DisplayName='Smoke Clinic' \
             -e Tenancy__Tenant__Country=AU \

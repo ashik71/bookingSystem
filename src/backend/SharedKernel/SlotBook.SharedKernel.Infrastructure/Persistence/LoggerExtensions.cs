@@ -24,4 +24,7 @@ internal static partial class LoggerExtensions
 
     [LoggerMessage(EventId = 9, Level = LogLevel.Information, Message = "Schema ready: {Collections} collections, {Indexes} indexes, {Migrations} migrations applied by this instance")]
     internal static partial void LogSchemaReady(this ILogger logger, int collections, int indexes, int migrations);
+
+    [LoggerMessage(EventId = 10, Level = LogLevel.Debug, Message = "Integration event {EventType} {EventId} staged; it leaves through the outbox when the unit of work commits")]
+    internal static partial void LogEventStaged(this ILogger logger, string eventType, Guid eventId);
 }
