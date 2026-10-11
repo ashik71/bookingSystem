@@ -14,7 +14,6 @@
     <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="TngTech.ArchUnitNET" />
-    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
