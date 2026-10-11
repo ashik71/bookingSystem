@@ -8,6 +8,7 @@ using SlotBook.IntegrationTests.TestSupport;
 using SlotBook.IntegrationTests.TestSupport.Guards;
 using SlotBook.IntegrationTests.TestSupport.Persistence;
 using SlotBook.SharedKernel.Application.Dispatching;
+using SlotBook.SharedKernel.Infrastructure.Persistence;
 
 namespace SlotBook.IntegrationTests;
 
@@ -17,6 +18,18 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
     private bool _mongoConnectionStringSet;
 
     public CapturingLoggerProvider Logs { get; } = new();
+
+    /// <summary>Extra services, for example a test index configuration or migration.</summary>
+    public Action<IServiceCollection>? ConfigureTestServices { get; init; }
+
+    /// <summary>
+    /// Removes the startup schema initializer, which simulates "MongoDB lost after startup":
+    /// the host starts even though MongoDB is unreachable.
+    /// </summary>
+    public bool SkipSchemaInitializer { get; init; }
+
+    /// <summary>Extra configuration, for example <c>Mongo:MigrationLockExpirySeconds</c>.</summary>
+    public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
 
     /// <summary><c>Mongo:Database</c>; <see langword="null"/> keeps the default of appsettings.json.</summary>
     public string? MongoDatabase { get; init; }
@@ -60,6 +73,11 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             builder.UseSetting("Mongo:Database", MongoDatabase);
         }
 
+        foreach (var (key, value) in Settings)
+        {
+            builder.UseSetting(key, value);
+        }
+
         if (TenantSlug is not null)
         {
             builder.UseSetting("Tenancy:Tenant:Slug", TenantSlug);
@@ -76,6 +94,16 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             services.AddScoped<GlobalNoteWriteRepository>();
             services.AddScoped<GuardCounterWriteRepository>();
             services.AddSingleton<ConflictAttempts>();
+            if (SkipSchemaInitializer)
+            {
+                var schema = services.Where(descriptor => descriptor.ImplementationType == typeof(SchemaInitializer)).ToList();
+                foreach (var descriptor in schema)
+                {
+                    services.Remove(descriptor);
+                }
+            }
+
+            ConfigureTestServices?.Invoke(services);
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
         });

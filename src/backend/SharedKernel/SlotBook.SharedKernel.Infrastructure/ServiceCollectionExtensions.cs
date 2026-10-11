@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -7,6 +8,7 @@ using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
 using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Persistence;
+using SlotBook.SharedKernel.Infrastructure.Persistence.Migrations;
 using SlotBook.SharedKernel.Infrastructure.Tenancy;
 using SlotBook.SharedKernel.Infrastructure.Time;
 
@@ -39,6 +41,8 @@ public static class ServiceCollectionExtensions
             {
                 options.ConnectionString = configuration[MongoOptions.ConnectionStringKey];
                 options.Database = configuration[MongoOptions.DatabaseKey];
+                options.SchemaTimeoutSeconds = configuration.GetValue(MongoOptions.SchemaTimeoutKey, options.SchemaTimeoutSeconds);
+                options.MigrationLockExpirySeconds = configuration.GetValue(MongoOptions.MigrationLockExpiryKey, options.MigrationLockExpirySeconds);
             })
             .ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<MongoOptions>, MongoOptionsValidator>());
@@ -53,8 +57,33 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICommandExecution, MongoCommandExecution>();
         services.AddScoped<MongoUnitOfWork>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<MongoUnitOfWork>());
+        services.AddSingleton<MigrationLock>();
+        services.AddSingleton<MigrationRunner>();
+        services.AddHostedService<SchemaInitializer>();
         services.AddHealthChecks()
             .AddCheck<MongoReadinessCheck>("mongodb", failureStatus: null, tags: null, timeout: TimeSpan.FromSeconds(5));
+
+        return services;
+    }
+
+    /// <summary>Registers every concrete <see cref="IIndexConfiguration"/> of the assembly. Startup creates their indexes.</summary>
+    public static IServiceCollection AddIndexConfigurationsFrom(this IServiceCollection services, Assembly assembly) =>
+        AddAll<IIndexConfiguration>(services, assembly);
+
+    /// <summary>Registers every concrete <see cref="IMigration"/> of the assembly. Startup runs the ones not yet recorded.</summary>
+    public static IServiceCollection AddMigrationsFrom(this IServiceCollection services, Assembly assembly) =>
+        AddAll<IMigration>(services, assembly);
+
+    private static IServiceCollection AddAll<TService>(IServiceCollection services, Assembly assembly)
+        where TService : class
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        foreach (var type in assembly.GetTypes().Where(type => type is { IsAbstract: false, IsInterface: false } && typeof(TService).IsAssignableFrom(type)))
+        {
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(TService), type));
+        }
 
         return services;
     }

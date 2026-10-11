@@ -15,4 +15,13 @@ internal static partial class LoggerExtensions
 
     [LoggerMessage(EventId = 6, Level = LogLevel.Warning, Message = "Command {CommandType}: the transaction commit result stayed unknown until the time budget ran out; the commit may have landed. Answering concurrency_conflict")]
     internal static partial void LogCommitResultUnknown(this ILogger logger, Exception exception, string commandType);
+
+    [LoggerMessage(EventId = 7, Level = LogLevel.Information, Message = "Migration {MigrationId} applied")]
+    internal static partial void LogMigrationApplied(this ILogger logger, string migrationId);
+
+    [LoggerMessage(EventId = 8, Level = LogLevel.Information, Message = "Migration lock is held by another instance; waiting for it to finish or expire")]
+    internal static partial void LogMigrationLockWaiting(this ILogger logger);
+
+    [LoggerMessage(EventId = 9, Level = LogLevel.Information, Message = "Schema ready: {Collections} collections, {Indexes} indexes, {Migrations} migrations applied by this instance")]
+    internal static partial void LogSchemaReady(this ILogger logger, int collections, int indexes, int migrations);
 }

@@ -40,7 +40,8 @@ public class HealthEndpointTests(SlotBookApiFactory factory) : IClassFixture<Slo
     [Fact]
     public async Task ReadyIs503UnhealthyWhenMongoDbUnreachable()
     {
-        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo };
+        // Skipping the schema initializer simulates "MongoDB lost after startup".
+        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo, SkipSchemaInitializer = true };
         var client = unreachable.CreateClient();
         var clock = Stopwatch.StartNew();
 
@@ -58,7 +59,8 @@ public class HealthEndpointTests(SlotBookApiFactory factory) : IClassFixture<Slo
     [InlineData("/api/health")]
     public async Task LivenessStaysHealthyWhenMongoDbUnreachable(string path)
     {
-        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo };
+        // Skipping the schema initializer simulates "MongoDB lost after startup".
+        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo, SkipSchemaInitializer = true };
         var client = unreachable.CreateClient();
 
         var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
@@ -66,6 +68,17 @@ public class HealthEndpointTests(SlotBookApiFactory factory) : IClassFixture<Slo
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldBe("""{"status":"Healthy"}""");
+    }
+
+    [Fact]
+    public void StartupFailsWhenMongoDbIsUnreachable()
+    {
+        using var unreachable = new SlotBookApiFactory { MongoConnectionString = UnreachableMongo };
+        var clock = Stopwatch.StartNew();
+
+        Should.Throw<Exception>(() => unreachable.CreateClient());
+
+        clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(15));
     }
 
     [Fact]

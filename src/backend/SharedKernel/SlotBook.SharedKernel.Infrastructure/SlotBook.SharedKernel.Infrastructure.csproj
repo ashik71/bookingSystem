@@ -15,6 +15,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="SlotBook.SharedKernel.Tests" />
     <InternalsVisibleTo Include="SlotBook.IntegrationTests" />
+    <InternalsVisibleTo Include="SlotBook.ArchitectureTests" />
   </ItemGroup>
 
 </Project>

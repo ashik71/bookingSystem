@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using SlotBook.SharedKernel.Infrastructure.Persistence;
 
 namespace SlotBook.ArchitectureTests;
 
@@ -22,6 +23,16 @@ internal sealed class ScanHost(bool includeFixtureControllers) : WebApplicationF
         builder.UseSetting("Tenancy:Tenant:Country", "GB");
         builder.UseSetting("Tenancy:Tenant:TimeZone", "Europe/London");
         builder.UseSetting("Tenancy:Tenant:WeekStartDay", "Monday");
+
+        // The host is never started against a database, so the startup schema work stays out.
+        builder.ConfigureServices(services =>
+        {
+            var schema = services.Where(descriptor => descriptor.ImplementationType == typeof(SchemaInitializer)).ToList();
+            foreach (var descriptor in schema)
+            {
+                services.Remove(descriptor);
+            }
+        });
 
         if (includeFixtureControllers)
         {
