@@ -10,6 +10,9 @@ namespace SlotBook.ServiceDefaults;
 
 public static class ServiceDefaultsExtensions
 {
+    /// <summary>Tag for checks that run on the liveness endpoints.</summary>
+    public const string LiveTag = "live";
+
     /// <summary>
     /// Writes JSON console logs whose scope carries the W3C trace id of the current request
     /// (AD-17), and registers health checks.
@@ -43,12 +46,21 @@ public static class ServiceDefaultsExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.MapHealthChecks("/health", new HealthCheckOptions
+        // Liveness never runs dependency checks; readiness runs every registered check.
+        foreach (var path in new[] { "/health", "/api/health" })
         {
-            ResponseWriter = (context, report) =>
-                context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() }),
-        });
+            app.MapHealthChecks(path, new HealthCheckOptions
+            {
+                Predicate = registration => registration.Tags.Contains(LiveTag),
+                ResponseWriter = WriteStatusAsync,
+            });
+        }
+
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteStatusAsync });
 
         return app;
     }
+
+    private static Task WriteStatusAsync(HttpContext context, HealthReport report) =>
+        context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });
 }
