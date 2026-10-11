@@ -8,6 +8,7 @@ using SlotBook.IntegrationTests.TestSupport;
 using SlotBook.IntegrationTests.TestSupport.Guards;
 using SlotBook.IntegrationTests.TestSupport.Persistence;
 using SlotBook.SharedKernel.Application.Dispatching;
+using SlotBook.SharedKernel.Infrastructure.Persistence;
 
 namespace SlotBook.IntegrationTests;
 
@@ -20,6 +21,12 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
 
     /// <summary>Extra services, for example a test index configuration or migration.</summary>
     public Action<IServiceCollection>? ConfigureTestServices { get; init; }
+
+    /// <summary>
+    /// Removes the startup schema initializer, which simulates "MongoDB lost after startup":
+    /// the host starts even though MongoDB is unreachable.
+    /// </summary>
+    public bool SkipSchemaInitializer { get; init; }
 
     /// <summary>Extra configuration, for example <c>Mongo:MigrationLockExpirySeconds</c>.</summary>
     public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
@@ -87,6 +94,15 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             services.AddScoped<GlobalNoteWriteRepository>();
             services.AddScoped<GuardCounterWriteRepository>();
             services.AddSingleton<ConflictAttempts>();
+            if (SkipSchemaInitializer)
+            {
+                var schema = services.Where(descriptor => descriptor.ImplementationType == typeof(SchemaInitializer)).ToList();
+                foreach (var descriptor in schema)
+                {
+                    services.Remove(descriptor);
+                }
+            }
+
             ConfigureTestServices?.Invoke(services);
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
