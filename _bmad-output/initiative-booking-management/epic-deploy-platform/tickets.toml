@@ -122,15 +122,30 @@ plan_checkpoint = false
 [[entry]]
 id = 6
 type = "story"
-title = "Integration events leave through the outbox and arrive through the inbox"
-description = "Adds AddSlotBookMessaging with MassTransit 8.5.11, the MongoDB bus outbox on the unit of work's session, the inbox in consumers sharing the consume context's session, the consumer retry rules and the event serialization round-trip test."
-verify = "A test commits an aggregate and an event in one transaction, the consumer runs once, and a crash after the handler does not run it twice."
+title = "Integration events leave through the outbox"
+description = "Story 6a of the #27 plan: MassTransit 8.5.11 packages, TenantEvent, IUnitOfWork.AddIntegrationEvent, AddSlotBookMessaging (RabbitMQ transport, MongoDB bus outbox, consumer scan), UnitOfWorkMongoDbContext so the outbox writes on the unit of work's session, publish-on-commit, RabbitMQ options, ConnectionStrings__rabbitmq in render.yaml, and the outbox-drain test helper."
+verify = "A test commits an aggregate and an event in one transaction, a handler that throws publishes nothing, a re-run after a conflict publishes once, and every event type round-trips through MassTransit serialization."
 covers = []
 after = [15]
 hitl = false
 risk = "high"
-references = ["architecture-slotbook/architecture-slotbook.md#ad-10"]
-plan_checkpoint = true
+references = ["architecture-slotbook/architecture-slotbook.md#ad-10", "architecture-slotbook/architecture-slotbook.md#ad-7"]
+notes = ['Plan: the approved plan on #27 (issue comment), split into 6a/6b; build only this part, with the review answers in the approval comment.']
+plan_checkpoint = false
+
+[[entry]]
+id = 17
+type = "story"
+title = "Integration events arrive through the inbox, with the consumer retry rules"
+description = "Story 6b of the #27 plan: joined mode in the unit of work and MongoCommandExecution for consume scopes, SlotBookConsumerDefinition (explicit endpoint name, an inner jittered retry for write conflicts, the 1/5/15/30 s interval retry that ignores deterministic failures, then UseMongoDbOutbox), consumer logs, and architecture rules for events and consumer definitions."
+verify = "A test commits an aggregate and an event in one transaction, the consumer runs once, and a crash after the handler does not run it twice."
+covers = []
+after = [6]
+hitl = false
+risk = "high"
+references = ["architecture-slotbook/architecture-slotbook.md#ad-10", "architecture-slotbook/architecture-slotbook.md#ad-7"]
+notes = ['Plan: the approved plan on #27 (issue comment), split into 6a/6b; build only this part (6b), with the review answers in the approval comment.']
+plan_checkpoint = false
 
 [[entry]]
 id = 7
@@ -175,7 +190,7 @@ title = "The free-tier proofs pass on the demo environment"
 description = "Adds Aspire's AppHost for local runs and runs the Epic 1 proofs on the deployed demo: the /api rewrite with POST, headers, Set-Cookie and client IP, the 24-hour timer through quiet hours with the Synthetics ping, transactions on Atlas Free, zero CSP violations, TLS and encryption at rest; each failing proof applies its free fallback."
 verify = "Each proof in the spine's Epic 1 proofs table is recorded as passed, or its free fallback is merged and the affected ADs are listed in a PR comment."
 covers = []
-after = [6, 7, 8, 9]
+after = [17, 7, 8, 9]
 hitl = true
 risk = "high"
 references = ["architecture-slotbook/architecture-slotbook.md#epic-1-proofs"]
