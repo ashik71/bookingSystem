@@ -96,6 +96,32 @@ jobs:
           ConnectionStrings__mongodb: mongodb://localhost:27017/?replicaSet=rs0
           ConnectionStrings__rabbitmq: amqp://guest:guest@localhost:5672/
         run: dotnet test
+      - name: Build the API image
+        run: docker build -f src/backend/Dockerfile -t slotbook-api:ci .
+      - name: Smoke-test the API image
+        # Host network so the container reaches the MongoDB started above on localhost:27017.
+        # A valid IANA time zone also proves tzdata and ICU are in the image.
+        run: |
+          set -euo pipefail
+          docker run -d --name api --network host \
+            -e ASPNETCORE_ENVIRONMENT=Demo \
+            -e ConnectionStrings__mongodb='mongodb://localhost:27017/?replicaSet=rs0' \
+            -e Tenancy__Tenant__Slug=smoke-clinic \
+            -e Tenancy__Tenant__DisplayName='Smoke Clinic' \
+            -e Tenancy__Tenant__Country=AU \
+            -e Tenancy__Tenant__TimeZone=Australia/Sydney \
+            -e Tenancy__Tenant__WeekStartDay=Monday \
+            slotbook-api:ci
+          for _ in $(seq 1 30); do
+            if body=$(curl -fsS http://localhost:8080/health/ready 2>/dev/null); then
+              echo "$body"
+              [[ $body == *'"mongodb":"Healthy"'* ]] && exit 0
+            fi
+            sleep 2
+          done
+          echo "API image did not report MongoDB healthy" >&2
+          docker logs api >&2
+          exit 1
 
   frontend:
     needs: changes
