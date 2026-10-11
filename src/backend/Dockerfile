@@ -1,8 +1,8 @@
 # Build context is the repo root (render.yaml: dockerContext: .); the build needs the root
-# build files (global.json, Directory.*.props, nuget.config, stylecop.json).
+# build files (global.json, Directory.*.props, nuget.config, stylecop.json, BannedSymbols.txt).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /repo
-COPY global.json Directory.Build.props Directory.Packages.props nuget.config stylecop.json .editorconfig ./
+COPY global.json Directory.Build.props Directory.Packages.props nuget.config stylecop.json BannedSymbols.txt .editorconfig ./
 COPY src/backend ./src/backend
 RUN dotnet publish src/backend/SlotBook.Api/SlotBook.Api.csproj -c Release -o /app --no-self-contained
 

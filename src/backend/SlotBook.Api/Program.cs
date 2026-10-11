@@ -6,7 +6,9 @@ using SlotBook.SharedKernel.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+#pragma warning disable RS0030 // composition root: the one place AD-14 allows TimeProvider.System
 builder.Services.AddSingleton(TimeProvider.System);
+#pragma warning restore RS0030
 builder.Services.AddSharedKernel(builder.Configuration);
 builder.Services.AddDispatcher();
 builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)

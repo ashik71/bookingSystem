@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SlotBook.IntegrationTests" />
+    <InternalsVisibleTo Include="SlotBook.ArchitectureTests" />
   </ItemGroup>
 
 </Project>

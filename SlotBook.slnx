@@ -11,6 +11,7 @@
     <Project Path="src/backend/SharedKernel/SlotBook.SharedKernel.Infrastructure/SlotBook.SharedKernel.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/backend/tests/">
+    <Project Path="src/backend/tests/SlotBook.ArchitectureTests/SlotBook.ArchitectureTests.csproj" />
     <Project Path="src/backend/tests/SlotBook.IntegrationTests/SlotBook.IntegrationTests.csproj" />
     <Project Path="src/backend/tests/SlotBook.SharedKernel.Tests/SlotBook.SharedKernel.Tests.csproj" />
   </Folder>
