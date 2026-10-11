@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SlotBook.IntegrationTests.TestSupport;
+using SlotBook.IntegrationTests.TestSupport.Persistence;
 using SlotBook.SharedKernel.Application.Dispatching;
 
 namespace SlotBook.IntegrationTests;
@@ -15,6 +16,9 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
     private bool _mongoConnectionStringSet;
 
     public CapturingLoggerProvider Logs { get; } = new();
+
+    /// <summary><c>Mongo:Database</c>; <see langword="null"/> keeps the default of appsettings.json.</summary>
+    public string? MongoDatabase { get; init; }
 
     /// <summary>Slug of the configured tenant; <see langword="null"/> leaves <c>Tenancy:Tenant</c> out.</summary>
     public string? TenantSlug { get; init; } = "test-clinic";
@@ -50,6 +54,11 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
                 configuration.AddInMemoryCollection([new("ConnectionStrings:mongodb", string.Empty)]));
         }
 
+        if (MongoDatabase is not null)
+        {
+            builder.UseSetting("Mongo:Database", MongoDatabase);
+        }
+
         if (TenantSlug is not null)
         {
             builder.UseSetting("Tenancy:Tenant:Slug", TenantSlug);
@@ -62,6 +71,8 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             services.AddSingleton<HandlerProbe>();
+            services.AddScoped<NoteWriteRepository>();
+            services.AddScoped<GlobalNoteWriteRepository>();
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
         });
