@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SlotBook.IntegrationTests.TestSupport;
+using SlotBook.IntegrationTests.TestSupport.Guards;
 using SlotBook.IntegrationTests.TestSupport.Persistence;
 using SlotBook.SharedKernel.Application.Dispatching;
 
@@ -73,6 +74,8 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<HandlerProbe>();
             services.AddScoped<NoteWriteRepository>();
             services.AddScoped<GlobalNoteWriteRepository>();
+            services.AddScoped<GuardCounterWriteRepository>();
+            services.AddSingleton<ConflictAttempts>();
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
         });
