@@ -48,4 +48,4 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://slotbook-api.onrender.com/api/*
+        destination: https://slotbook-api-sc87.onrender.com/api/*
