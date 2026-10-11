@@ -30,4 +30,24 @@ public class DeterministicIdTests
         DeterministicId.ForTenant("a").ShouldBe(DeterministicId.ForTenant("a"));
         DeterministicId.ForTenant("a").ShouldNotBe(DeterministicId.ForTenant("b"));
     }
+
+    [Fact]
+    public void GuardIdIsStableAndDiffersByTenantKindAndKey()
+    {
+        var tenant = DeterministicId.ForTenant("a");
+
+        DeterministicId.ForGuard(tenant, "counter", "x").ShouldBe(DeterministicId.ForGuard(tenant, "counter", "x"));
+        DeterministicId.ForGuard(tenant, "counter", "x").ShouldNotBe(DeterministicId.ForGuard(DeterministicId.ForTenant("b"), "counter", "x"));
+        DeterministicId.ForGuard(tenant, "counter", "x").ShouldNotBe(DeterministicId.ForGuard(tenant, "limit", "x"));
+        DeterministicId.ForGuard(tenant, "counter", "x").ShouldNotBe(DeterministicId.ForGuard(tenant, "counter", "y"));
+    }
+
+    [Fact]
+    public void GuardIdKeyPartsCannotBeShiftedAcrossTheSeparator()
+    {
+        var tenant = DeterministicId.ForTenant("a");
+
+        DeterministicId.ForGuard(tenant, "k", "a:1:b").ShouldNotBe(DeterministicId.ForGuard(tenant, "k", "a", "b"));
+        DeterministicId.ForGuard(tenant, "k", "ab", "c").ShouldNotBe(DeterministicId.ForGuard(tenant, "k", "a", "bc"));
+    }
 }
