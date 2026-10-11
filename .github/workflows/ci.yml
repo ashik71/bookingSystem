@@ -54,6 +54,18 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Same images as the sandbox sidecars (sandbox/run-job.sh: MONGO_IMAGE, RABBIT_IMAGE).
+    # MongoDB is started by a step below: a service container can't take `--replSet rs0`.
+    services:
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,9 +73,28 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      - name: Start MongoDB replica set
+        run: |
+          set -euo pipefail
+          docker run -d --name mongo -p 27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+          for _ in $(seq 1 30); do
+            if docker exec mongo mongosh --quiet --eval \
+                'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]}).ok }' \
+                >/dev/null 2>&1 \
+              && docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB replica set did not become ready" >&2
+          docker logs mongo >&2
+          exit 1
       - name: Build
         run: dotnet build
       - name: Test
+        env:
+          ConnectionStrings__mongodb: mongodb://localhost:27017/?replicaSet=rs0
+          ConnectionStrings__rabbitmq: amqp://guest:guest@localhost:5672/
         run: dotnet test
 
   frontend:
