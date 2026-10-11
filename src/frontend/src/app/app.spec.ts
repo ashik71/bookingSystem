@@ -27,21 +27,28 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Checking API');
-    http.expectOne('/health').flush({ status: 'Healthy' });
+    http.expectOne('/api/health').flush({ status: 'Healthy' });
   });
 
-  it('shows healthy when /health answers 200', async () => {
+  it('shows healthy when /api/health answers 200', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    http.expectOne('/health').flush({ status: 'Healthy' }, { status: 200, statusText: 'OK' });
+    http.expectOne('/api/health').flush({ status: 'Healthy' }, { status: 200, statusText: 'OK' });
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('API is healthy');
+  });
+
+  it('never calls the unprefixed /health', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    http.expectNone('/health');
+    http.expectOne('/api/health').flush({ status: 'Healthy' });
   });
 
   it('shows unavailable on a network error', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    http.expectOne('/health').error(new ProgressEvent('error'));
+    http.expectOne('/api/health').error(new ProgressEvent('error'));
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('API is unavailable');
     expect(handleError).not.toHaveBeenCalled();
@@ -52,10 +59,10 @@ describe('App', () => {
     [503, 'Service Unavailable'],
     [404, 'Not Found'],
     [204, 'No Content'],
-  ])('shows unavailable when /health answers %i', (status, statusText) => {
+  ])('shows unavailable when /api/health answers %i', (status, statusText) => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    http.expectOne('/health').flush(status === 204 ? null : 'x', { status, statusText });
+    http.expectOne('/api/health').flush(status === 204 ? null : 'x', { status, statusText });
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('API is unavailable');
     expect(handleError).not.toHaveBeenCalled();

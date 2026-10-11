@@ -9,7 +9,7 @@ export class ApiHealth {
   private readonly http = inject(HttpClient);
 
   check(): Observable<HealthState> {
-    return this.http.get('/health', { observe: 'response' }).pipe(
+    return this.http.get('/api/health', { observe: 'response' }).pipe(
       map((response): HealthState => (response.status === 200 ? 'healthy' : 'unavailable')),
       catchError(() => of<HealthState>('unavailable')),
     );
