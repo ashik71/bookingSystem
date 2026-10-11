@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="../../SharedKernel/SlotBook.SharedKernel.Domain/SlotBook.SharedKernel.Domain.csproj" />
     <ProjectReference Include="../../SharedKernel/SlotBook.SharedKernel.Application/SlotBook.SharedKernel.Application.csproj" />
+    <ProjectReference Include="../../SharedKernel/SlotBook.SharedKernel.Infrastructure/SlotBook.SharedKernel.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

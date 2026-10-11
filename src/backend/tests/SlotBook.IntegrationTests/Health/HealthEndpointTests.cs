@@ -1,18 +1,19 @@
-using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
 using Xunit;
 
 namespace SlotBook.IntegrationTests.Health;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(SlotBookApiFactory factory) : IClassFixture<SlotBookApiFactory>
 {
-    [Fact]
-    public async Task GetHealthWithoutCredentialsReturns200JsonHealthy()
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/api/health")]
+    [InlineData("/health/ready")]
+    public async Task HealthEndpointWithoutCredentialsReturns200JsonHealthy(string path)
     {
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/health", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
