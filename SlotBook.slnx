@@ -2,8 +2,16 @@
   <Folder Name="/src/" />
   <Folder Name="/src/backend/">
     <Project Path="src/backend/SlotBook.Api/SlotBook.Api.csproj" />
+    <Project Path="src/backend/SlotBook.ServiceDefaults/SlotBook.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/backend/SharedKernel/">
+    <Project Path="src/backend/SharedKernel/SlotBook.SharedKernel.Application/SlotBook.SharedKernel.Application.csproj" />
+    <Project Path="src/backend/SharedKernel/SlotBook.SharedKernel.Contracts/SlotBook.SharedKernel.Contracts.csproj" />
+    <Project Path="src/backend/SharedKernel/SlotBook.SharedKernel.Domain/SlotBook.SharedKernel.Domain.csproj" />
+    <Project Path="src/backend/SharedKernel/SlotBook.SharedKernel.Infrastructure/SlotBook.SharedKernel.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/backend/tests/">
-    <Project Path="src/backend/tests/SlotBook.Api.Tests/SlotBook.Api.Tests.csproj" />
+    <Project Path="src/backend/tests/SlotBook.IntegrationTests/SlotBook.IntegrationTests.csproj" />
+    <Project Path="src/backend/tests/SlotBook.SharedKernel.Tests/SlotBook.SharedKernel.Tests.csproj" />
   </Folder>
 </Solution>

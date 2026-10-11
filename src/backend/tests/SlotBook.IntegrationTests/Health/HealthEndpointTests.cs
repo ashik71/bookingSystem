@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
 using Xunit;
 
-namespace SlotBook.Api.Tests;
+namespace SlotBook.IntegrationTests.Health;
 
 public class HealthEndpointTests(WebApplicationFactory<Program> factory)
     : IClassFixture<WebApplicationFactory<Program>>

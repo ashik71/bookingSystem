@@ -1,14 +1,20 @@
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Text.Json.Serialization;
+using SlotBook.Api.Errors;
+using SlotBook.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddHealthChecks();
+builder.AddServiceDefaults();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ProblemDetailsSetup.Customize);
+builder.Services.AddExceptionHandler<SlotBookExceptionHandler>();
 
 var app = builder.Build();
 
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = (context, report) =>
-        context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() }),
-});
+app.UseRequestLogging();
+app.UseExceptionHandler();
+app.UseStatusCodePages(ProblemDetailsSetup.WriteStatusCodeAsync);
+app.MapDefaultEndpoints();
+app.MapControllers();
 
 app.Run();

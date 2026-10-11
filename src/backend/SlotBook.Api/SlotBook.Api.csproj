@@ -1,3 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <ItemGroup>
+    <ProjectReference Include="../SlotBook.ServiceDefaults/SlotBook.ServiceDefaults.csproj" />
+    <ProjectReference Include="../SharedKernel/SlotBook.SharedKernel.Infrastructure/SlotBook.SharedKernel.Infrastructure.csproj" />
+    <ProjectReference Include="../SharedKernel/SlotBook.SharedKernel.Domain/SlotBook.SharedKernel.Domain.csproj" />
+  </ItemGroup>
+
 </Project>
