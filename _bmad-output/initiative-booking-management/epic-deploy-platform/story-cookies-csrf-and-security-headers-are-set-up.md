@@ -3,14 +3,14 @@ tracker_id: "29"
 remote: "https://github.com/ashik71/bookingSystem/issues/29"
 id: 8
 type: story
-title: "Cookies, CSRF and security headers are set up"
+title: "The OpenAPI document is checked in CI, and security headers are set"
 parent: epic-deploy-platform
 after: [2, 5]
 hitl: false
 risk: medium
 ---
 
-# Cookies, CSRF and security headers are set up
+# The OpenAPI document is checked in CI, and security headers are set
 
 ## Description
 

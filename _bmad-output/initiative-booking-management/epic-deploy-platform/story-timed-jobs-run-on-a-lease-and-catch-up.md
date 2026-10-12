@@ -3,14 +3,14 @@ tracker_id: "28"
 remote: "https://github.com/ashik71/bookingSystem/issues/28"
 id: 7
 type: story
-title: "Timed jobs run on a lease and catch up"
+title: "Timed jobs run on an expiring, renewed lease"
 parent: epic-deploy-platform
 after: [16]
 hitl: false
 risk: medium
 ---
 
-# Timed jobs run on a lease and catch up
+# Timed jobs run on an expiring, renewed lease
 
 ## Description
 

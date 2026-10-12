@@ -5,7 +5,7 @@ id: 10
 type: story
 title: "The free-tier proofs pass on the demo environment"
 parent: epic-deploy-platform
-after: [6, 7, 8, 9]
+after: [6, 7, 8, 9, 17, 18, 19, 20]
 hitl: true
 risk: high
 ---
