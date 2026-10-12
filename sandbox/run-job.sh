@@ -90,8 +90,12 @@ cleanup() {
 trap cleanup EXIT
 
 docker network create "$net" >/dev/null
+# The data lives in tmpfs, inside the 1 GB limit. Cap the oplog (default minimum 990 MB, never shrunk by
+# dropping test databases) and the WiredTiger cache, or repeated test runs fill memory, stall MongoDB and
+# get it OOM-killed mid-run.
 docker run -d --name "$mongo_ctr" --network "$net" --network-alias mongo --platform linux/arm64 \
-  --memory 1g --tmpfs /data/db "$MONGO_IMAGE" --replSet rs0 --bind_ip_all >/dev/null
+  --memory 1g --tmpfs /data/db "$MONGO_IMAGE" --replSet rs0 --bind_ip_all \
+  --oplogSize 128 --wiredTigerCacheSizeGB 0.25 >/dev/null
 docker run -d --name "$rabbit_ctr" --network "$net" --network-alias rabbitmq --platform linux/arm64 \
   --memory 512m "$RABBIT_IMAGE" >/dev/null
 
