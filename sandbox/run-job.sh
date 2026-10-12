@@ -90,17 +90,21 @@ cleanup() {
 trap cleanup EXIT
 
 docker network create "$net" >/dev/null
+# The data lives in tmpfs, inside the 1 GB limit. Cap the oplog (default minimum 990 MB, never shrunk by
+# dropping test databases) and the WiredTiger cache, or repeated test runs fill memory, stall MongoDB and
+# get it OOM-killed mid-run.
 docker run -d --name "$mongo_ctr" --network "$net" --network-alias mongo --platform linux/arm64 \
-  --memory 1g --tmpfs /data/db "$MONGO_IMAGE" --replSet rs0 --bind_ip_all >/dev/null
+  --memory 1g --tmpfs /data/db "$MONGO_IMAGE" --replSet rs0 --bind_ip_all \
+  --oplogSize 128 --wiredTigerCacheSizeGB 0.25 >/dev/null
 docker run -d --name "$rabbit_ctr" --network "$net" --network-alias rabbitmq --platform linux/arm64 \
   --memory 512m "$RABBIT_IMAGE" >/dev/null
 
 ready=""
 for _ in $(seq 1 60); do
-  if docker exec "$mongo_ctr" mongosh --quiet --eval \
+  if docker exec -e HOME=/tmp "$mongo_ctr" mongosh --quiet --eval \
       'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}).ok }' \
       >/dev/null 2>&1 \
-    && docker exec "$mongo_ctr" mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true \
+    && docker exec -e HOME=/tmp "$mongo_ctr" mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true \
     && docker exec "$rabbit_ctr" rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
     ready=yes; break
   fi
