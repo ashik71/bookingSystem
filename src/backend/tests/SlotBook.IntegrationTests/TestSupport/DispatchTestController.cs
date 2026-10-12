@@ -7,6 +7,8 @@ using SlotBook.SharedKernel.Application.Dispatching;
 namespace SlotBook.IntegrationTests.TestSupport;
 
 [ApiController]
+[IgnoreAntiforgeryToken]
+[Microsoft.AspNetCore.Authorization.AllowAnonymous]
 [Route("test-only/probes")]
 public class DispatchTestController(IDispatcher dispatcher) : ControllerBase
 {

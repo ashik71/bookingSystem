@@ -1,4 +1,6 @@
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -8,6 +10,7 @@ using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
 using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Persistence;
+using SlotBook.SharedKernel.Infrastructure.Persistence.DataProtection;
 using SlotBook.SharedKernel.Infrastructure.Persistence.Leases;
 using SlotBook.SharedKernel.Infrastructure.Persistence.Migrations;
 using SlotBook.SharedKernel.Infrastructure.Tenancy;
@@ -53,6 +56,12 @@ public static class ServiceCollectionExtensions
             new MongoClient(MongoClientSettings.FromUrl(MongoUrl.Create(provider.GetRequiredService<IOptions<MongoOptions>>().Value.ConnectionString))));
         services.AddSingleton(provider =>
             provider.GetRequiredService<IMongoClient>().GetDatabase(provider.GetRequiredService<IOptions<MongoOptions>>().Value.Database));
+        services.AddSingleton<MongoXmlRepository>();
+
+        // Keys at rest rely on Atlas encryption (NFR-10), so the "no XML encryptor" startup warning is expected.
+        services.AddDataProtection().SetApplicationName("SlotBook");
+        services.AddOptions<KeyManagementOptions>()
+            .Configure<MongoXmlRepository>((options, repository) => options.XmlRepository = repository);
         services.AddSingleton<TenantCollections>();
         services.AddSingleton<RetryableDuplicateKeys>();
         services.AddSingleton<ICommandExecution, MongoCommandExecution>();
