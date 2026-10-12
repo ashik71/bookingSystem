@@ -42,7 +42,7 @@ public sealed class JobRunnerTests(MongoDatabaseFixture mongo) : IClassFixture<M
         runs.Count.ShouldBeGreaterThan(2);
         for (var index = 1; index < runs.Count; index++)
         {
-            runs[index].Start.ShouldBeGreaterThanOrEqualTo(runs[index - 1].End, "a run started while the previous run still held the lease");
+            runs[index].Start.ShouldBeGreaterThanOrEqualTo(runs[index - 1].End, "a run started while the previous run still held the lease: " + string.Join(" | ", runs.Select(run => $"{run.Holder} {run.Start % 100_000_000_000}-{run.End % 100_000_000_000}")) + " " + string.Join(" / ", first.Logs.Records.Concat(second.Logs.Records).Where(log => log.EventId is >= 30 and <= 39).Select(log => log.Message)));
         }
 
         runs.Select(run => run.Holder).Distinct().ShouldAllBe(holder => holders.Contains(holder));
@@ -84,7 +84,7 @@ public sealed class JobRunnerTests(MongoDatabaseFixture mongo) : IClassFixture<M
         var renewed = (await LeaseAsync(control, ct))["expiresAt"].ToUniversalTime();
 
         renewed.ShouldBeGreaterThan(initial);
-        control.Started.ShouldBe(1, "the lease is 3 s, the run 5 s: only renewal keeps the other host out");
+        control.Started.ShouldBe(1, "the lease is 3 s, the run 5 s: only renewal keeps the other host out: " + string.Join(" / ", first.Logs.Records.Concat(second.Logs.Records).Where(log => log.EventId is >= 30 and <= 39).Select(log => log.Message)));
         await WaitForAsync(() => control.Runs.Count == 1, ct);
         control.CancelledHolders.IsEmpty.ShouldBeTrue();
     }
