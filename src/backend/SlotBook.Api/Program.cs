@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SlotBook.Api.Errors;
+using SlotBook.Api.Security;
 using SlotBook.ServiceDefaults;
 using SlotBook.SharedKernel.Application.Dispatching;
 using SlotBook.SharedKernel.Infrastructure;
@@ -52,6 +53,7 @@ if (generatingOpenApiDocument)
 
 var app = builder.Build();
 
+app.UseSecurityHeaders();
 app.UseRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages(ProblemDetailsSetup.WriteStatusCodeAsync);
