@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<MongoUnitOfWork>());
         services.AddSingleton<LeaseHolder>();
         services.AddSingleton<LeaseStore>();
+        services.AddSingleton<HeartbeatStateStore>();
         services.AddSingleton<MigrationLock>();
         services.AddSingleton<MigrationRunner>();
         services.AddHostedService<SchemaInitializer>();
