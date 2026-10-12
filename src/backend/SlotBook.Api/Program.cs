@@ -54,6 +54,7 @@ if (generatingOpenApiDocument)
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(ForwardedHeadersSetup.Options());
 app.UseSecurityHeaders();
 app.UseRequestLogging();
 app.UseExceptionHandler();

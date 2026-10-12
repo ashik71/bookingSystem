@@ -14,6 +14,9 @@ public class SecurityProbeController : ControllerBase
     [HttpPost("protected")]
     public IActionResult Protected() => Ok();
 
+    [HttpGet("remote-ip")]
+    public IActionResult RemoteIp() => Ok(HttpContext.Connection.RemoteIpAddress?.ToString());
+
     [HttpGet("open")]
     public IActionResult Open() => Ok();
 }
