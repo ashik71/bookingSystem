@@ -27,4 +27,7 @@ internal static partial class LoggerExtensions
 
     [LoggerMessage(EventId = 10, Level = LogLevel.Debug, Message = "Integration event {EventType} {EventId} staged; it leaves through the outbox when the unit of work commits")]
     internal static partial void LogEventStaged(this ILogger logger, string eventType, Guid eventId);
+
+    [LoggerMessage(EventId = 11, Level = LogLevel.Information, Message = "Command {CommandType} was refused ({ErrorCode}) in a consumer; the inbox mark commits and the message is not retried")]
+    internal static partial void LogConsumerCommandRefused(this ILogger logger, string commandType, string? errorCode);
 }

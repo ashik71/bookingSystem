@@ -33,6 +33,7 @@ public static class MessagingServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(consumerAssemblies);
 
+        services.AddSingleton(new EndpointNaming(configuration[EndpointPrefixKey] is { Length: > 0 } endpointPrefix ? endpointPrefix + "-" : string.Empty));
         services.AddOptions<RabbitMqOptions>()
             .Configure(options => options.ConnectionString = configuration[RabbitMqOptions.ConnectionStringKey])
             .ValidateOnStart();
@@ -62,8 +63,10 @@ public static class MessagingServiceCollectionExtensions
                 outbox.DatabaseFactory(provider => provider.GetRequiredService<IMongoDatabase>());
                 outbox.UseBusOutbox();
 
-                // Nothing consumes through the inbox yet, and the cleanup service creates its index on start,
-                // which would stop the host when MongoDB is down. The consumer story turns it back on.
+                // MassTransit's inbox cleanup service creates an index when it starts and stops the host when MongoDB is
+                // down, which would break "ready answers 503 while MongoDB is down". Delivered inbox rows expire through a TTL
+                // index that startup creates (BusOutboxCollection), on the same window.
+                outbox.DuplicateDetectionWindow = BusOutboxCollection.InboxDuplicateDetectionWindow;
                 outbox.DisableInboxCleanupService();
             });
 

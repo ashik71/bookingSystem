@@ -28,6 +28,7 @@ internal sealed class UnitOfWorkMongoDbContext(MongoUnitOfWork unitOfWork, IServ
 
     public async Task BeginTransaction(CancellationToken cancellationToken)
     {
+        unitOfWork.JoinIfOutsideCommit();
         await unitOfWork.EnsureTransactionAsync(cancellationToken).ConfigureAwait(false);
         TransactionId ??= Guid.CreateVersion7(clock.UtcNow);
     }

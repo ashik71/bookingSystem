@@ -30,6 +30,12 @@ public sealed class SchemaTests(MongoDatabaseFixture mongo) : IClassFixture<Mong
         collections.ShouldContain("outbox.states");
         collections.ShouldContain("inbox.states");
 
+        // Delivered inbox rows expire server-side after the duplicate-detection window (30 minutes).
+        var inboxIndexes = await (await mongo.Client.GetDatabase(database).GetCollection<BsonDocument>("inbox.states").Indexes.ListAsync(ct)).ToListAsync(ct);
+        var ttl = inboxIndexes.Single(index => index["name"].AsString == "ix_inbox_states_delivered_ttl");
+        ttl["key"].AsBsonDocument.Names.ShouldBe(["Delivered"]);
+        ttl["expireAfterSeconds"].ToInt64().ShouldBe(1800);
+
         var first = await IndexNamesAsync(database, ct);
         first.ShouldBe(["_id_", "ix_schema_samples_kind", "ux_schema_samples_key"], ignoreOrder: true);
 

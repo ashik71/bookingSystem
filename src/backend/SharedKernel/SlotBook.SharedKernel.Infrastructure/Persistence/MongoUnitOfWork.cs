@@ -36,11 +36,19 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, IServiceP
     private readonly List<Func<IPublishEndpoint, CancellationToken, Task>> _events = [];
     private IClientSessionHandle? _session;
     private bool _committed;
+    private bool _committing;
 
     internal static TransactionOptions TransactionOptions => _transactionOptions;
 
     /// <summary>The session of the running transaction, or <see langword="null"/> before the first use.</summary>
     internal IClientSessionHandle? Session => _session;
+
+    /// <summary>
+    /// <see langword="true"/> in a consume scope: the consume outbox began the transaction (the inbox mark is
+    /// in it) and commits it. <see cref="CommitAsync"/> then writes the aggregates and the staged events on
+    /// that session but does not commit.
+    /// </summary>
+    internal bool IsJoined { get; private set; }
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
@@ -53,6 +61,7 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, IServiceP
 
         var session = await BeginAsync(cancellationToken).ConfigureAwait(false);
         _committed = true;
+        _committing = true;
         var now = clock.UtcNow.UtcDateTime;
         foreach (var tracked in _tracked.Values)
         {
@@ -68,6 +77,12 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, IServiceP
             {
                 await publish(publishEndpoint, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        if (IsJoined)
+        {
+            // The consume outbox writes the inbox mark on this session and commits it.
+            return;
         }
 
         // Once every write is in, a late cancellation must not abort a commit that may have landed.
@@ -116,6 +131,18 @@ public sealed class MongoUnitOfWork(IMongoClient client, IClock clock, IServiceP
         finally
         {
             session.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Called when something outside the unit of work begins its transaction. Before the commit has started
+    /// that is the consume outbox; during the commit it is the bus outbox writing the staged events.
+    /// </summary>
+    internal void JoinIfOutsideCommit()
+    {
+        if (!_committing)
+        {
+            IsJoined = true;
         }
     }
 

@@ -12,7 +12,8 @@ namespace SlotBook.SharedKernel.Infrastructure.Persistence;
 /// The whole-handler retry loop (AD-7). Each attempt runs in a fresh DI scope, so its unit of work,
 /// repositories and loads are new. A version conflict, a write conflict or a retryable duplicate key
 /// re-runs the handler after a jittered backoff until the 3 s budget is spent; then the command fails
-/// with <c>concurrency_conflict</c> (409). Every other exception passes through unchanged. A refusal
+/// with <c>concurrency_conflict</c> (409). In a consume scope the handler runs once, in the consumer's scope
+/// (the consumer's retry policy re-runs it). Every other exception passes through unchanged. A refusal
 /// the handler returns on a re-run is returned as it is.
 /// </summary>
 internal sealed class MongoCommandExecution(
@@ -34,6 +35,19 @@ internal sealed class MongoCommandExecution(
         {
             // A nested public command joins the outer attempt: same scope, same unit of work.
             return await attempt(outer.Services, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (services.GetService<MongoUnitOfWork>() is { IsJoined: true })
+        {
+            // A consume scope: the consume outbox owns the transaction and the consumer's retry policy owns the
+            // retries. Run once in the consumer's scope, so a conflict aborts the whole consume.
+            var joined = await attempt(services, cancellationToken).ConfigureAwait(false);
+            if (joined.IsRefused)
+            {
+                logger.LogConsumerCommandRefused(commandType.Name, joined.Code);
+            }
+
+            return joined;
         }
 
         var budget = new RetryBudget(timeProvider, RetryBudget.DefaultTotal);
