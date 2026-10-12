@@ -33,6 +33,7 @@ public static class MessagingServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(consumerAssemblies);
 
+        services.AddSingleton(new EndpointNaming(configuration[EndpointPrefixKey] is { Length: > 0 } endpointPrefix ? endpointPrefix + "-" : string.Empty));
         services.AddOptions<RabbitMqOptions>()
             .Configure(options => options.ConnectionString = configuration[RabbitMqOptions.ConnectionStringKey])
             .ValidateOnStart();
@@ -62,9 +63,7 @@ public static class MessagingServiceCollectionExtensions
                 outbox.DatabaseFactory(provider => provider.GetRequiredService<IMongoDatabase>());
                 outbox.UseBusOutbox();
 
-                // Nothing consumes through the inbox yet, and the cleanup service creates its index on start,
-                // which would stop the host when MongoDB is down. The consumer story turns it back on.
-                outbox.DisableInboxCleanupService();
+                // The inbox cleanup service stays on: it removes inbox rows after the retention period.
             });
 
             bus.UsingRabbitMq((context, rabbit) =>

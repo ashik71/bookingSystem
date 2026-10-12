@@ -14,6 +14,8 @@ internal static class ArchitectureRules
     public const string NoPublicSetters = "AD-4 no public setters";
     public const string NoUnfilteredCollection = "AD-5 no unfiltered collection";
     public const string AggregateTenancy = "AD-5 aggregate tenancy";
+    public const string IntegrationEvents = "AD-10 integration events";
+    public const string ConsumerDefinitions = "AD-10 consumer definitions";
 
     private const string DomainNamespace = @"^SlotBook\..*\.Domain(\..*)?$";
     private const string ApplicationNamespace = @"^SlotBook\..*\.Application(\..*)?$";
@@ -25,6 +27,9 @@ internal static class ArchitectureRules
     private const string TenantAggregateRootName = "SlotBook.SharedKernel.Domain.TenantAggregateRoot";
     private const string GlobalAggregateAttributeName = "SlotBook.SharedKernel.Domain.GlobalAggregateAttribute";
     private const string MassTransitNamespace = @"^MassTransit(\..*)?$";
+    private const string TenantEventName = "SlotBook.SharedKernel.Contracts.TenantEvent";
+    private const string ConsumerInterfaceName = "MassTransit.IConsumer";
+    private const string ConsumerDefinitionName = "SlotBook.SharedKernel.Infrastructure.Messaging.SlotBookConsumerDefinition`1";
 
     public static IArchRule DomainLayerRule { get; } =
         Types().That().ResideInNamespaceMatching(DomainNamespace)
@@ -78,6 +83,22 @@ internal static class ArchitectureRules
                 "is an aggregate that is not exactly one of tenant-owned and [GlobalAggregate]")
             .Because(AggregateTenancy);
 
+    /// <summary>Every concrete integration event is sealed and named for what happened, without an <c>Event</c> suffix (AD-10).</summary>
+    public static IArchRule IntegrationEventsRule { get; } =
+        Types().That().AreNot(typeof(object)).Should().FollowCustomCondition(
+                type => EventProblem(type) is null,
+                "be sealed and have no Event suffix when it is a TenantEvent",
+                "is a TenantEvent that is not sealed or has an Event suffix")
+            .Because(IntegrationEvents);
+
+    /// <summary>Every consumer has a definition derived from <c>SlotBookConsumerDefinition</c>, which carries the endpoint name and the retry rules (AD-10).</summary>
+    public static IArchRule ConsumerDefinitionsRule { get; } =
+        Types().Should().FollowCustomCondition(
+                type => !IsConsumer(type) || type.BackwardsDependencies.Any(dependency => dependency.Origin is Class origin && DerivesFrom(origin, ConsumerDefinitionName)),
+                "have a definition derived from SlotBookConsumerDefinition when it is a consumer",
+                "is a consumer without a definition derived from SlotBookConsumerDefinition")
+            .Because(ConsumerDefinitions);
+
     public static IArchRule ByName(string ruleName) => ruleName switch
     {
         DomainLayer => DomainLayerRule,
@@ -86,6 +107,8 @@ internal static class ArchitectureRules
         NoPublicSetters => NoPublicSettersRule,
         NoUnfilteredCollection => NoUnfilteredCollectionRule,
         AggregateTenancy => AggregateTenancyRule,
+        IntegrationEvents => IntegrationEventsRule,
+        ConsumerDefinitions => ConsumerDefinitionsRule,
         _ => throw new ArgumentOutOfRangeException(nameof(ruleName), ruleName, null),
     };
 
@@ -113,6 +136,20 @@ internal static class ArchitectureRules
         var global = concrete.Attributes.Any(attribute => attribute.FullName == GlobalAggregateAttributeName);
         return tenantOwned == global ? type.FullName : null;
     }
+
+    private static string? EventProblem(IType type)
+    {
+        if (type is not Class concrete || concrete.IsAbstract == true || !DerivesFrom(concrete, TenantEventName))
+        {
+            return null;
+        }
+
+        return concrete.IsSealed != true || concrete.Name.EndsWith("Event", StringComparison.Ordinal) ? type.FullName : null;
+    }
+
+    private static bool IsConsumer(IType type) =>
+        type is Class { IsAbstract: false } consumer
+        && consumer.ImplementedInterfaces.Any(contract => contract.FullName.Equals(ConsumerInterfaceName, StringComparison.Ordinal) || contract.FullName.StartsWith(ConsumerInterfaceName + "`1", StringComparison.Ordinal));
 
     private static bool DerivesFrom(Class type, string baseName)
     {
