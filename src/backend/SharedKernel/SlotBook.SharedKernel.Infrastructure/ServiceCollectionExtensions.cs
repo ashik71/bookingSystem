@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Configuration;
 using SlotBook.SharedKernel.Application;
 using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Persistence;
@@ -53,7 +54,13 @@ public static class ServiceCollectionExtensions
 
         // The client doesn't connect until first use, so startup doesn't wait on the server.
         services.AddSingleton<IMongoClient>(provider =>
-            new MongoClient(MongoClientSettings.FromUrl(MongoUrl.Create(provider.GetRequiredService<IOptions<MongoOptions>>().Value.ConnectionString))));
+        {
+            var settings = MongoClientSettings.FromUrl(MongoUrl.Create(provider.GetRequiredService<IOptions<MongoOptions>>().Value.ConnectionString));
+
+            // AD-17: spans name the operation, never the command text (0 keeps db.query.text off).
+            settings.TracingOptions = new TracingOptions { QueryTextMaxLength = 0 };
+            return new MongoClient(settings);
+        });
         services.AddSingleton(provider =>
             provider.GetRequiredService<IMongoClient>().GetDatabase(provider.GetRequiredService<IOptions<MongoOptions>>().Value.Database));
         services.AddSingleton<MongoXmlRepository>();

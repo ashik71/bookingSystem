@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SlotBook.ServiceDefaults.Telemetry;
 
 namespace SlotBook.ServiceDefaults;
 
@@ -15,7 +16,7 @@ public static class ServiceDefaultsExtensions
 
     /// <summary>
     /// Writes JSON console logs whose scope carries the W3C trace id of the current request
-    /// (AD-17), and registers health checks.
+    /// (AD-17), registers health checks, and exports traces, metrics and logs over OTLP when configured.
     /// </summary>
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
@@ -30,6 +31,7 @@ public static class ServiceDefaultsExtensions
             options.UseUtcTimestamp = true;
         });
         builder.Services.AddHealthChecks();
+        builder.AddSlotBookTelemetry();
 
         return builder;
     }
@@ -58,7 +60,7 @@ public static class ServiceDefaultsExtensions
 
         // The build's commit SHA lets a deploy pipeline confirm the new version is the one answering.
         // Render sets RENDER_GIT_COMMIT; another host would map its own variable to the same key.
-        var commit = ReadCommit(app.Configuration["RENDER_GIT_COMMIT"]);
+        var commit = BuildInfo.ReadCommit(app.Configuration["RENDER_GIT_COMMIT"]);
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             ResponseWriter = (context, report) => WriteReadinessAsync(context, report, commit),
@@ -78,12 +80,6 @@ public static class ServiceDefaultsExtensions
             ? context.Response.WriteAsJsonAsync(new { status, checks })
             : context.Response.WriteAsJsonAsync(new { status, commit, checks });
     }
-
-    // Only a 7-40 character lowercase hex SHA is echoed to the anonymous caller.
-    private static string? ReadCommit(string? value) =>
-        value is { Length: >= 7 and <= 40 } && value.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'))
-            ? value
-            : null;
 
     private static Task WriteStatusAsync(HttpContext context, HealthReport report) =>
         context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });
