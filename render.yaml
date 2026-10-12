@@ -5,6 +5,7 @@
 #   1. Render dashboard -> New -> Blueprint -> pick this repo and branch `main`.
 #   2. Enter the values Render asks for on slotbook-api: ConnectionStrings__mongodb, ConnectionStrings__rabbitmq,
 #      Tenancy__Tenant__Slug, __DisplayName, __Country, __TimeZone (IANA id), __WeekStartDay.
+#      Also OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS (Grafana Cloud OTLP gateway).
 #   3. If Render gave the API a host other than slotbook-api.onrender.com (name taken, suffix
 #      added), edit the rewrite destination below and sync the Blueprint.
 #   4. The static site's URL is on the slotbook-web page in the dashboard.
@@ -36,6 +37,14 @@ services:
       - key: Tenancy__Tenant__TimeZone
         sync: false
       - key: Tenancy__Tenant__WeekStartDay
+        sync: false
+      - key: OTEL_SERVICE_NAME # traces, metrics and logs go out over OTLP only when the endpoint is set (AD-17)
+        value: slotbook-api
+      - key: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/protobuf
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT # the OTLP gateway URL of the Grafana Cloud stack
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS # Authorization=Basic ..., a secret; never commit it
         sync: false
 
   - type: web
