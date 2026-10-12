@@ -88,6 +88,9 @@ public static class MessagingServiceCollectionExtensions
             services.AddSingleton<IIndexConfiguration>(provider => new BusOutboxCollection(provider, collectionType));
         }
 
+        services.AddSingleton<OutboxBacklogMeter>();
+        services.AddHostedService(provider => provider.GetRequiredService<OutboxBacklogMeter>());
+
         // MassTransit's own context starts transactions of its own. Ours runs on the unit of work's session.
         services.RemoveAll<MassTransit.MongoDbIntegration.MongoDbContext>();
         services.AddScoped<MassTransit.MongoDbIntegration.MongoDbContext, UnitOfWorkMongoDbContext>();

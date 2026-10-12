@@ -53,12 +53,22 @@ public static class ServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<MongoOptions>, MongoOptionsValidator>());
 
         // The client doesn't connect until first use, so startup doesn't wait on the server.
+        services.AddSingleton<MongoOperationsMeter>();
         services.AddSingleton<IMongoClient>(provider =>
         {
             var settings = MongoClientSettings.FromUrl(MongoUrl.Create(provider.GetRequiredService<IOptions<MongoOptions>>().Value.ConnectionString));
 
             // AD-17: spans name the operation, never the command text (0 keeps db.query.text off).
             settings.TracingOptions = new TracingOptions { QueryTextMaxLength = 0 };
+
+            // AD-18: the operations counter, tagged with the command name only.
+            var operations = provider.GetRequiredService<MongoOperationsMeter>();
+            var configure = settings.ClusterConfigurator;
+            settings.ClusterConfigurator = builder =>
+            {
+                configure?.Invoke(builder);
+                operations.Subscribe(builder);
+            };
             return new MongoClient(settings);
         });
         services.AddSingleton(provider =>
