@@ -14,7 +14,7 @@ while IFS= read -r path || [[ -n $path ]]; do
     src/backend/* | SlotBook.slnx | global.json | Directory.Build.props | Directory.Packages.props \
       | .editorconfig | stylecop.json | BannedSymbols.txt | nuget.config | .dockerignore)
       backend=true ;;
-    .github/workflows/ci.yml | .github/scripts/ci-*.sh)
+    .github/workflows/ci.yml | .github/workflows/deploy.yml | .github/scripts/ci-*.sh | .github/scripts/deploy-*.sh)
       backend=true
       frontend=true ;;
   esac

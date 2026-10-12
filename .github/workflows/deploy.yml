@@ -1,0 +1,130 @@
+# Deploys the demo environment (AD-18). Runs when `ci` succeeds on a push to main: calls the
+# Render deploy hooks for the side(s) that changed (rules: .github/scripts/ci-changes.sh),
+# API first, waits until /health/ready reports the new commit, then the static site.
+# Render auto-deploy is off (render.yaml), so this workflow is the only way a deploy starts.
+# A manual run (workflow_dispatch, main only) deploys exactly the ticked sides.
+name: deploy
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('deploy-manual {0}', github.sha) || format('deploy {0}', github.event.workflow_run.head_sha) }}
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      api:
+        description: Deploy the API (then wait for readiness)
+        type: boolean
+        default: false
+      web:
+        description: Deploy the static site
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read   # gh run list: find the last successful deploy
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false   # never interrupt a deploy; a newer queued run supersedes an older queued one
+
+env:
+  DEPLOY_POLL_INTERVAL: 15   # seconds between /health/ready polls
+  DEPLOY_TIMEOUT: 1200       # seconds to wait for the API (free-tier Docker build + cold start)
+
+jobs:
+  deploy:
+    # Only a successful push-to-main CI run of this repository (never a fork PR whose branch
+    # is called main), or a manual run on main. Secrets never reach an untrusted ref.
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'main'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide what to deploy
+        id: sides
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_API: ${{ inputs.api }}
+          INPUT_WEB: ${{ inputs.web }}
+        run: |
+          set -euo pipefail
+          if [[ $EVENT == workflow_dispatch ]]; then
+            echo "base=manual" >> "$GITHUB_OUTPUT"
+            echo "api=$INPUT_API" >> "$GITHUB_OUTPUT"
+            echo "web=$INPUT_WEB" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Base: the commit of the last successful automatic deploy, so a side whose deploy
+          # failed is deployed again by the next merge. Manual runs are not counted.
+          base=$(gh run list --workflow deploy.yml --event workflow_run --status success --limit 1 \
+            --json displayTitle --jq '.[0].displayTitle // "" | sub("^deploy "; "")')
+          if [[ $base =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$base^{commit}" 2>/dev/null \
+            && git merge-base --is-ancestor "$base" "$HEAD_SHA"; then
+            git diff --name-only --no-renames "$base" "$HEAD_SHA" | .github/scripts/ci-changes.sh > "$RUNNER_TEMP/sides.txt"
+            sed -e 's/^backend=/api=/' -e 's/^frontend=/web=/' "$RUNNER_TEMP/sides.txt" >> "$GITHUB_OUTPUT"
+          else
+            echo "No usable earlier deploy (found '${base:-none}'): deploying both sides."
+            base=none
+            printf 'api=true\nweb=true\n' >> "$GITHUB_OUTPUT"
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the API
+        if: steps.sides.outputs.api == 'true'
+        env:
+          RENDER_DEPLOY_HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        run: |
+          set -euo pipefail
+          # Status code only: neither the hook URL nor the response body is printed.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$RENDER_DEPLOY_HOOK_API" 2>/dev/null || true)
+          echo "API deploy hook answered HTTP ${code:-none}"
+          [[ $code =~ ^2 ]]
+
+      - name: Wait for the API to report the new commit
+        if: steps.sides.outputs.api == 'true'
+        env:
+          DEMO_API_URL: ${{ vars.DEMO_API_URL }}
+        run: .github/scripts/deploy-wait-ready.sh "$DEMO_API_URL" "$HEAD_SHA"
+
+      - name: Deploy the static site
+        if: steps.sides.outputs.web == 'true'
+        env:
+          RENDER_DEPLOY_HOOK_WEB: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$RENDER_DEPLOY_HOOK_WEB" 2>/dev/null || true)
+          echo "Web deploy hook answered HTTP ${code:-none}"
+          [[ $code =~ ^2 ]]
+
+      - name: Summary
+        if: always()
+        env:
+          BASE: ${{ steps.sides.outputs.base }}
+          API: ${{ steps.sides.outputs.api }}
+          WEB: ${{ steps.sides.outputs.web }}
+          RESULT: ${{ job.status }}
+        run: |
+          {
+            echo "### Deploy ${RESULT}"
+            echo "- head: \`${HEAD_SHA}\`"
+            echo "- base: \`${BASE:-unknown}\`"
+            echo "- API: ${API:-?} · static site: ${WEB:-?}"
+          } >> "$GITHUB_STEP_SUMMARY"

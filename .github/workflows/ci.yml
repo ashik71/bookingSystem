@@ -35,6 +35,7 @@ jobs:
           .github/scripts/ci-changes.test.sh
           .github/scripts/ci-aggregate.test.sh
           .github/scripts/ci-openapi-current.test.sh
+          .github/scripts/deploy-wait-ready.test.sh
       - name: Detect changed sides
         id: detect
         env:
