@@ -101,10 +101,10 @@ docker run -d --name "$rabbit_ctr" --network "$net" --network-alias rabbitmq --p
 
 ready=""
 for _ in $(seq 1 60); do
-  if docker exec "$mongo_ctr" mongosh --quiet --eval \
+  if docker exec -e HOME=/tmp "$mongo_ctr" mongosh --quiet --eval \
       'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]}).ok }' \
       >/dev/null 2>&1 \
-    && docker exec "$mongo_ctr" mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true \
+    && docker exec -e HOME=/tmp "$mongo_ctr" mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true \
     && docker exec "$rabbit_ctr" rabbitmq-diagnostics -q ping >/dev/null 2>&1; then
     ready=yes; break
   fi
