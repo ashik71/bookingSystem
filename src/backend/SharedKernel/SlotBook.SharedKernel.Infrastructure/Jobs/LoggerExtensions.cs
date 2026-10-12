@@ -24,4 +24,13 @@ internal static partial class LoggerExtensions
 
     [LoggerMessage(EventId = 36, Level = LogLevel.Warning, Message = "Job {Job} could not release its lease ({ExceptionType}); it expires on its own")]
     internal static partial void LogJobReleaseFailed(this ILogger logger, string job, string exceptionType);
+
+    [LoggerMessage(EventId = 37, Level = LogLevel.Information, Message = "Heartbeat tick {DueAt:O} processed at {ProcessedAt:O} ({Lateness} late)")]
+    internal static partial void LogHeartbeatTick(this ILogger logger, DateTime dueAt, DateTime processedAt, TimeSpan lateness);
+
+    [LoggerMessage(EventId = 38, Level = LogLevel.Warning, Message = "Heartbeat skipped {Skipped} missed ticks older than the cap of {Cap} per run")]
+    internal static partial void LogHeartbeatTicksSkipped(this ILogger logger, int skipped, int cap);
+
+    [LoggerMessage(EventId = 39, Level = LogLevel.Debug, Message = "Heartbeat ticks were already recorded by another run; nothing to do")]
+    internal static partial void LogHeartbeatAlreadyRecorded(this ILogger logger);
 }

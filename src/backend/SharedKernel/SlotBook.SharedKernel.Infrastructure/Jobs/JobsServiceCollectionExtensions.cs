@@ -9,7 +9,7 @@ namespace SlotBook.SharedKernel.Infrastructure.Jobs;
 public static class JobsServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the job options (<c>Jobs:LeaseSeconds</c>, validated on start). Jobs are added with <see cref="AddTimedJob{TJob}"/>.
+    /// Registers the job options (<c>Jobs:*</c>, validated on start) and, when <c>Jobs:Heartbeat:Enabled</c> is set, the heartbeat job. Jobs are added with <see cref="AddTimedJob{TJob}"/>.
     /// Call it after <c>AddSharedKernel</c>, which registers the lease store and the MongoDB database.
     /// </summary>
     public static IServiceCollection AddSlotBookJobs(this IServiceCollection services, IConfiguration configuration)
@@ -18,9 +18,20 @@ public static class JobsServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddOptions<JobOptions>()
-            .Configure(options => options.LeaseSeconds = configuration.GetValue(JobOptions.LeaseSecondsKey, options.LeaseSeconds))
+            .Configure(options =>
+            {
+                options.LeaseSeconds = configuration.GetValue(JobOptions.LeaseSecondsKey, options.LeaseSeconds);
+                options.HeartbeatEnabled = configuration.GetValue(JobOptions.HeartbeatEnabledKey, options.HeartbeatEnabled);
+                options.HeartbeatPeriodSeconds = configuration.GetValue(JobOptions.HeartbeatPeriodSecondsKey, options.HeartbeatPeriodSeconds);
+                options.HeartbeatMaxTicksPerRun = configuration.GetValue(JobOptions.HeartbeatMaxTicksPerRunKey, options.HeartbeatMaxTicksPerRun);
+            })
             .ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<JobOptions>, JobOptionsValidator>());
+        if (configuration.GetValue(JobOptions.HeartbeatEnabledKey, false))
+        {
+            services.AddTimedJob<HeartbeatJob>();
+        }
+
         return services;
     }
 

@@ -8,8 +8,22 @@ internal sealed class JobOptionsValidator : IValidateOptions<JobOptions>
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return options.LeaseSeconds < JobOptions.MinimumLeaseSeconds
-            ? ValidateOptionsResult.Fail($"{JobOptions.LeaseSecondsKey} must be at least {JobOptions.MinimumLeaseSeconds}")
-            : ValidateOptionsResult.Success;
+        var failures = new List<string>();
+        if (options.LeaseSeconds < JobOptions.MinimumLeaseSeconds)
+        {
+            failures.Add($"{JobOptions.LeaseSecondsKey} must be at least {JobOptions.MinimumLeaseSeconds}");
+        }
+
+        if (options.HeartbeatPeriodSeconds <= 0)
+        {
+            failures.Add($"{JobOptions.HeartbeatPeriodSecondsKey} must be positive");
+        }
+
+        if (options.HeartbeatMaxTicksPerRun <= 0)
+        {
+            failures.Add($"{JobOptions.HeartbeatMaxTicksPerRunKey} must be positive");
+        }
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }
