@@ -41,6 +41,8 @@ internal static class ProblemDetailsSetup
     private static string? CodeFor(int? status) => status switch
     {
         StatusCodes.Status400BadRequest => CommonErrors.ValidationFailed,
+        StatusCodes.Status401Unauthorized => CommonErrors.Unauthenticated,
+        StatusCodes.Status403Forbidden => CommonErrors.Forbidden,
         StatusCodes.Status404NotFound => CommonErrors.NotFound,
         StatusCodes.Status409Conflict => CommonErrors.ConcurrencyConflict,
         StatusCodes.Status429TooManyRequests => CommonErrors.RateLimited,

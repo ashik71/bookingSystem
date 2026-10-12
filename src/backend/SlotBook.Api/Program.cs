@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using SlotBook.Api.Auth;
 using SlotBook.Api.Errors;
 using SlotBook.Api.Security;
 using SlotBook.ServiceDefaults;
@@ -37,6 +38,7 @@ builder.Services.AddSlotBookMessaging(builder.Configuration);
 builder.Services.AddSlotBookJobs(builder.Configuration);
 builder.Services.AddDispatcher();
 builder.Services.AddSlotBookAntiforgery();
+builder.Services.AddSlotBookAuthentication();
 builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
     .ConfigureApiBehaviorOptions(options =>
         options.InvalidModelStateResponseFactory = context => throw ModelBindingErrors.ToException(context.ModelState))
@@ -59,6 +61,9 @@ app.UseSecurityHeaders();
 app.UseRequestLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages(ProblemDetailsSetup.WriteStatusCodeAsync);
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapControllers();
 
