@@ -100,7 +100,7 @@ public sealed class JobRunnerTests(MongoDatabaseFixture mongo) : IClassFixture<M
 
         await mongo.Database.GetCollection<BsonDocument>("leases").UpdateOneAsync(
             Builders<BsonDocument>.Filter.Eq("_id", "job:" + control.Name),
-            Builders<BsonDocument>.Update.Set("holder", "thief").Set("expiresAt", Now().AddMinutes(10)),
+            Builders<BsonDocument>.Update.Set("holder", "thief").Set("token", "thief-token").Set("expiresAt", Now().AddMinutes(10)),
             cancellationToken: ct);
 
         await WaitForAsync(() => control.CancelledHolders.Count == 1, ct);
@@ -121,6 +121,32 @@ public sealed class JobRunnerTests(MongoDatabaseFixture mongo) : IClassFixture<M
         await WaitForAsync(() => !control.Runs.IsEmpty, ct);
 
         control.Runs.First().Holder.ShouldBe(HolderOf(host));
+    }
+
+    [Fact]
+    public async Task ARunThatLostItsLeaseToALaterAcquisitionByTheSameHostCannotRenewOrReleaseIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var store = new LeaseStore(mongo.Database, new LeaseHolder(), new WallClock(Now));
+        var name = "job:" + NewName();
+        var leases = mongo.Database.GetCollection<BsonDocument>("leases");
+
+        var a = await store.TryAcquireAsync(name, TimeSpan.FromMinutes(5), ct);
+        a.ShouldNotBeNull();
+        await leases.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", name),
+            Builders<BsonDocument>.Update.Set("expiresAt", Now().AddSeconds(-1)),
+            cancellationToken: ct);
+        var b = await store.TryAcquireAsync(name, TimeSpan.FromMinutes(5), ct);
+        b.ShouldNotBeNull();
+
+        (await store.RenewAsync(a, TimeSpan.FromMinutes(5), ct)).ShouldBeFalse();
+        await store.ReleaseAsync(a, ct);
+
+        var document = await leases.Find(Builders<BsonDocument>.Filter.Eq("_id", name)).SingleOrDefaultAsync(ct);
+        document.ShouldNotBeNull();
+        document["token"].AsString.ShouldBe(b.Token);
+        (await store.RenewAsync(b, TimeSpan.FromMinutes(5), ct)).ShouldBeTrue();
     }
 
     [Fact]
@@ -201,4 +227,9 @@ public sealed class JobRunnerTests(MongoDatabaseFixture mongo) : IClassFixture<M
                 Settings = Settings,
                 ConfigureTestServices = services => AddJob(services, control),
             };
+
+    private sealed class WallClock(Func<DateTime> now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(now(), TimeSpan.Zero);
+    }
 }

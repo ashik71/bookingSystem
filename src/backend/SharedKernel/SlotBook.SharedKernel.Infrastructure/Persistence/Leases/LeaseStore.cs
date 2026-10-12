@@ -1,12 +1,14 @@
+using System.Security.Cryptography;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace SlotBook.SharedKernel.Infrastructure.Persistence.Leases;
 
 /// <summary>
-/// Expiring lease documents in <c>leases</c> (<c>_id</c> = the lease name, <c>holder</c>, <c>expiresAt</c>, <c>acquiredAt</c>,
-/// <c>renewedAt</c>). A crashed holder's lease stops blocking once it expires; a live holder renews it. Every write is
-/// filtered on the holder, so a host that lost its lease can neither renew nor release the new holder's.
+/// Expiring lease documents in <c>leases</c> (<c>_id</c> = the lease name, <c>holder</c>, <c>token</c>, <c>expiresAt</c>, <c>acquiredAt</c>,
+/// <c>renewedAt</c>). A crashed holder's lease stops blocking once it expires; a live holder renews it. Every acquisition gets a random token and every write is
+/// filtered on it, so a run that lost its lease can neither renew nor release a later acquisition's, even by the same host.
+/// <c>holder</c> stays for diagnostics.
 /// </summary>
 internal sealed class LeaseStore(IMongoDatabase database, LeaseHolder holder, TimeProvider time)
 {
@@ -21,8 +23,10 @@ internal sealed class LeaseStore(IMongoDatabase database, LeaseHolder holder, Ti
     {
         var now = time.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(duration);
+        var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         var update = Builders<BsonDocument>.Update
             .Set("holder", holder.Id)
+            .Set("token", token)
             .Set("expiresAt", expiresAt)
             .Set("acquiredAt", now)
             .Set("renewedAt", now);
@@ -34,7 +38,7 @@ internal sealed class LeaseStore(IMongoDatabase database, LeaseHolder holder, Ti
                 update,
                 new UpdateOptions { IsUpsert = true },
                 cancellationToken).ConfigureAwait(false);
-            return new Lease(name, holder.Id, expiresAt);
+            return new Lease(name, holder.Id, token, expiresAt);
         }
         catch (MongoWriteException exception) when (exception.WriteError.Category == ServerErrorCategory.DuplicateKey)
         {
@@ -54,7 +58,7 @@ internal sealed class LeaseStore(IMongoDatabase database, LeaseHolder holder, Ti
         var now = time.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(duration);
         var result = await Leases.UpdateOneAsync(
-            _filter.Eq("_id", lease.Name) & _filter.Eq("holder", lease.Holder) & _filter.Gt("expiresAt", now),
+            _filter.Eq("_id", lease.Name) & _filter.Eq("token", lease.Token) & _filter.Gt("expiresAt", now),
             Builders<BsonDocument>.Update.Set("expiresAt", expiresAt).Set("renewedAt", now),
             cancellationToken: cancellationToken).ConfigureAwait(false);
         if (result.MatchedCount == 0)
@@ -72,7 +76,7 @@ internal sealed class LeaseStore(IMongoDatabase database, LeaseHolder holder, Ti
         ArgumentNullException.ThrowIfNull(lease);
 
         await Leases.DeleteOneAsync(
-            _filter.Eq("_id", lease.Name) & _filter.Eq("holder", lease.Holder),
+            _filter.Eq("_id", lease.Name) & _filter.Eq("token", lease.Token),
             cancellationToken).ConfigureAwait(false);
     }
 }
