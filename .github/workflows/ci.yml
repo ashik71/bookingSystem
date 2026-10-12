@@ -34,6 +34,7 @@ jobs:
           set -euo pipefail
           .github/scripts/ci-changes.test.sh
           .github/scripts/ci-aggregate.test.sh
+          .github/scripts/ci-openapi-current.test.sh
       - name: Detect changed sides
         id: detect
         env:
@@ -91,6 +92,8 @@ jobs:
           exit 1
       - name: Build
         run: dotnet build
+      - name: Check openapi.json is current
+        run: .github/scripts/ci-openapi-current.sh
       - name: Test
         env:
           ConnectionStrings__mongodb: mongodb://localhost:27017/?replicaSet=rs0

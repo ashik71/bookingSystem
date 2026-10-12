@@ -51,3 +51,12 @@ services:
       - type: rewrite
         source: /api/*
         destination: https://slotbook-api-sc87.onrender.com/api/*
+    headers:
+      # AD-18. The CSP is stricter than AD-18's two directives: frame-ancestors does not fall back
+      # to default-src, so without it the site could be framed. No `preload` on HSTS: onrender.com is not ours.
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
