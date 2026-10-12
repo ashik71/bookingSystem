@@ -1,58 +1,30 @@
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Driver;
+using SlotBook.SharedKernel.Infrastructure.Persistence.Leases;
 
 namespace SlotBook.SharedKernel.Infrastructure.Persistence.Migrations;
 
 /// <summary>
-/// The expiring lock document <c>leases/migrations</c> (<c>holder</c>, <c>expiresAt</c>). A crashed holder's
-/// lock stops blocking once it expires. Story 7's job runner extends this shape.
+/// The lease <c>leases/migrations</c>, taken through the <see cref="LeaseStore"/>. A crashed holder's
+/// lock stops blocking once it expires.
 /// </summary>
-internal sealed class MigrationLock(IMongoDatabase database, IOptions<MongoOptions> options, TimeProvider time)
+internal sealed class MigrationLock(LeaseStore leases, IOptions<MongoOptions> options)
 {
-    internal const string CollectionName = "leases";
+    internal const string CollectionName = LeaseStore.CollectionName;
     internal const string LockId = "migrations";
-
-    private static readonly FilterDefinitionBuilder<BsonDocument> _filter = Builders<BsonDocument>.Filter;
-
-    private IMongoCollection<BsonDocument> Leases => database.GetCollection<BsonDocument>(CollectionName);
 
     /// <summary>Takes the lock when it is absent or expired. Returns <see langword="null"/> when another holder has it.</summary>
     public async Task<Handle?> TryAcquireAsync(CancellationToken cancellationToken)
     {
-        var now = time.GetUtcNow().UtcDateTime;
-        var holder = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
-        var expiresAt = now.AddSeconds(options.Value.MigrationLockExpirySeconds);
-        var update = Builders<BsonDocument>.Update
-            .Set("holder", holder)
-            .Set("expiresAt", expiresAt);
-        try
-        {
-            // A live lock fails the filter, so the upsert tries to insert the same _id and hits DuplicateKey.
-            await Leases.UpdateOneAsync(
-                _filter.Eq("_id", LockId) & _filter.Lt("expiresAt", now),
-                update,
-                new UpdateOptions { IsUpsert = true },
-                cancellationToken).ConfigureAwait(false);
-            return new Handle(Leases, holder);
-        }
-        catch (MongoWriteException exception) when (exception.WriteError.Category == ServerErrorCategory.DuplicateKey)
-        {
-            return null;
-        }
-        catch (MongoCommandException exception) when (exception.Code == 11000)
-        {
-            return null;
-        }
+        var lease = await leases.TryAcquireAsync(LockId, TimeSpan.FromSeconds(options.Value.MigrationLockExpirySeconds), cancellationToken).ConfigureAwait(false);
+        return lease is null ? null : new Handle(leases, lease);
     }
 
-    internal sealed class Handle(IMongoCollection<BsonDocument> leases, string holder)
+    internal sealed class Handle(LeaseStore leases, Lease lease)
     {
         /// <summary>Releases the lock unless it expired and someone else took it.</summary>
         public async Task ReleaseAsync()
         {
-            await leases.DeleteOneAsync(
-                _filter.Eq("_id", LockId) & _filter.Eq("holder", holder)).ConfigureAwait(false);
+            await leases.ReleaseAsync(lease, CancellationToken.None).ConfigureAwait(false);
         }
     }
 }

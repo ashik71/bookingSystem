@@ -8,6 +8,7 @@ using MongoDB.Driver;
 using SlotBook.SharedKernel.Application;
 using SlotBook.SharedKernel.Application.Persistence;
 using SlotBook.SharedKernel.Infrastructure.Persistence;
+using SlotBook.SharedKernel.Infrastructure.Persistence.Leases;
 using SlotBook.SharedKernel.Infrastructure.Persistence.Migrations;
 using SlotBook.SharedKernel.Infrastructure.Tenancy;
 using SlotBook.SharedKernel.Infrastructure.Time;
@@ -57,6 +58,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICommandExecution, MongoCommandExecution>();
         services.AddScoped<MongoUnitOfWork>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<MongoUnitOfWork>());
+        services.AddSingleton<LeaseHolder>();
+        services.AddSingleton<LeaseStore>();
         services.AddSingleton<MigrationLock>();
         services.AddSingleton<MigrationRunner>();
         services.AddHostedService<SchemaInitializer>();
