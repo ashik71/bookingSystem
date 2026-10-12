@@ -63,7 +63,10 @@ public static class MessagingServiceCollectionExtensions
                 outbox.DatabaseFactory(provider => provider.GetRequiredService<IMongoDatabase>());
                 outbox.UseBusOutbox();
 
-                // The inbox cleanup service stays on: it removes inbox rows after the retention period.
+                // MassTransit's inbox cleanup service creates an index when it starts and stops the host when MongoDB is
+                // down, which would break "ready answers 503 while MongoDB is down". Inbox rows are kept until a cleanup
+                // that tolerates MongoDB being unavailable is built (a gap named in the 6b PR).
+                outbox.DisableInboxCleanupService();
             });
 
             bus.UsingRabbitMq((context, rabbit) =>
