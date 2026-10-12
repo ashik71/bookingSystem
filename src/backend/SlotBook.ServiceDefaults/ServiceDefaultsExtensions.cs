@@ -56,18 +56,34 @@ public static class ServiceDefaultsExtensions
             }).AllowAnonymous();
         }
 
-        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteReadinessAsync }).AllowAnonymous();
+        // The build's commit SHA lets a deploy pipeline confirm the new version is the one answering.
+        // Render sets RENDER_GIT_COMMIT; another host would map its own variable to the same key.
+        var commit = ReadCommit(app.Configuration["RENDER_GIT_COMMIT"]);
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            ResponseWriter = (context, report) => WriteReadinessAsync(context, report, commit),
+        }).AllowAnonymous();
 
         return app;
     }
 
     // Names and statuses only: descriptions and exception text could leak secrets.
-    private static Task WriteReadinessAsync(HttpContext context, HealthReport report) =>
-        context.Response.WriteAsJsonAsync(new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.ToDictionary(entry => entry.Key, entry => entry.Value.Status.ToString()),
-        });
+    private static Task WriteReadinessAsync(HttpContext context, HealthReport report, string? commit)
+    {
+        var checks = report.Entries.ToDictionary(entry => entry.Key, entry => entry.Value.Status.ToString());
+        var status = report.Status.ToString();
+
+        // Left out (not null) when unknown, so local and test bodies stay unchanged.
+        return commit is null
+            ? context.Response.WriteAsJsonAsync(new { status, checks })
+            : context.Response.WriteAsJsonAsync(new { status, commit, checks });
+    }
+
+    // Only a 7-40 character lowercase hex SHA is echoed to the anonymous caller.
+    private static string? ReadCommit(string? value) =>
+        value is { Length: >= 7 and <= 40 } && value.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'))
+            ? value
+            : null;
 
     private static Task WriteStatusAsync(HttpContext context, HealthReport report) =>
         context.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });
