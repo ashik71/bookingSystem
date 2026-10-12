@@ -187,10 +187,19 @@ if [[ -n $BRANCH ]]; then
     git -C /work/push.git -c protocol.file.allow=always fetch --quiet --no-tags \
       --upload-pack="git -c safe.directory=$REPO/.git upload-pack" \
       "file://$REPO" "refs/heads/$BRANCH:refs/heads/$BRANCH"
-    # No '+' and no --force: a non-fast-forward is rejected by design.
-    git -C /work/push.git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
-      push --quiet "$REPO_URL" "refs/heads/$BRANCH:refs/heads/$BRANCH"
-    pushed=true
+    # No '+' and no --force: a non-fast-forward is rejected by design. GitHub sometimes rejects a push
+    # with a transient server error ("fatal error in commit_refs"); the container is disposable, so a
+    # lost push loses the run. Retry with backoff before giving up.
+    for wait in 5 15 30 0; do
+      if git -C /work/push.git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+          push --quiet "$REPO_URL" "refs/heads/$BRANCH:refs/heads/$BRANCH"; then
+        pushed=true
+        break
+      fi
+      [[ $wait == 0 ]] && die "push of $BRANCH failed after 4 attempts"
+      log "push failed; retrying in ${wait}s"
+      sleep "$wait"
+    done
     log "pushed $BRANCH ($(agit rev-list --count "$BASE_SHA..refs/heads/$BRANCH") new commit(s))"
   else
     log "no new commits on $BRANCH"
