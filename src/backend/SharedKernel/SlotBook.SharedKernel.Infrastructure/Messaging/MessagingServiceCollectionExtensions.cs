@@ -64,8 +64,9 @@ public static class MessagingServiceCollectionExtensions
                 outbox.UseBusOutbox();
 
                 // MassTransit's inbox cleanup service creates an index when it starts and stops the host when MongoDB is
-                // down, which would break "ready answers 503 while MongoDB is down". Inbox rows are kept until a cleanup
-                // that tolerates MongoDB being unavailable is built (a gap named in the 6b PR).
+                // down, which would break "ready answers 503 while MongoDB is down". Delivered inbox rows expire through a TTL
+                // index that startup creates (BusOutboxCollection), on the same window.
+                outbox.DuplicateDetectionWindow = BusOutboxCollection.InboxDuplicateDetectionWindow;
                 outbox.DisableInboxCleanupService();
             });
 

@@ -1,5 +1,7 @@
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Shouldly;
 using SlotBook.IntegrationTests.TestSupport;
 using SlotBook.IntegrationTests.TestSupport.Messaging;
@@ -66,6 +68,24 @@ public sealed class InboxTests(MongoDatabaseFixture mongo) : IClassFixture<Mongo
         Consumers.Host.Probe.Invocations(noteId).ShouldBe(1);
         (await Consumers.InboxRecordsAsync(messageId, ct)).ShouldBe(1);
         Consumers.Host.Logs.Records.ShouldContain(log => log.EventId == 20 && log.Message.Contains(messageId.ToString(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task DeliveredInboxRowCarriesTheDateTheTtlIndexTargets()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var noteId = ConsumerFixture.Id("DeliveredInboxRowCarriesTheDateTheTtlIndexTargets", "1");
+        var messageId = ConsumerFixture.Id("DeliveredInboxRowCarriesTheDateTheTtlIndexTargets", "2");
+
+        await Consumers.PublishAsync(noteId, messageId, ct);
+        await ConsumerFixture.WaitUntilAsync(async () => await Consumers.CounterAsync(noteId, ct) > 0, "the consume", ct);
+        await Task.Delay(TimeSpan.FromSeconds(1), ct);
+
+        // The TTL index is on "Delivered"; it only expires rows where MassTransit wrote that element as a date.
+        var row = await mongo.Database.GetCollection<BsonDocument>("inbox.states")
+            .Find(Builders<BsonDocument>.Filter.Eq("MessageId", new BsonBinaryData(messageId, GuidRepresentation.Standard)))
+            .SingleAsync(ct);
+        row["Delivered"].BsonType.ShouldBe(BsonType.DateTime);
     }
 
     [Fact]
