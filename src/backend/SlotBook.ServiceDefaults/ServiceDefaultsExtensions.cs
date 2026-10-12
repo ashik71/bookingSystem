@@ -53,10 +53,10 @@ public static class ServiceDefaultsExtensions
             {
                 Predicate = registration => registration.Tags.Contains(LiveTag),
                 ResponseWriter = WriteStatusAsync,
-            });
+            }).AllowAnonymous();
         }
 
-        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteReadinessAsync });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions { ResponseWriter = WriteReadinessAsync }).AllowAnonymous();
 
         return app;
     }
