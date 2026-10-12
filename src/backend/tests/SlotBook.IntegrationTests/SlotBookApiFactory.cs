@@ -21,6 +21,8 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
 
     public CapturingLoggerProvider Logs { get; } = new();
 
+    public CapturedTelemetry Telemetry { get; } = new();
+
     /// <summary>Extra services, for example a test index configuration or migration.</summary>
     public Action<IServiceCollection>? ConfigureTestServices { get; init; }
 
@@ -138,6 +140,7 @@ public sealed class SlotBookApiFactory : WebApplicationFactory<Program>
             services.AddUseCasesFrom(typeof(DispatchTestController).Assembly);
             services.AddControllers().AddApplicationPart(typeof(FailingTestController).Assembly);
         });
+        builder.ConfigureServices(services => Telemetry.Attach(services));
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
     }
 }
