@@ -3,6 +3,7 @@ using SlotBook.Api.Errors;
 using SlotBook.ServiceDefaults;
 using SlotBook.SharedKernel.Application.Dispatching;
 using SlotBook.SharedKernel.Infrastructure;
+using SlotBook.SharedKernel.Infrastructure.Jobs;
 using SlotBook.SharedKernel.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 #pragma warning restore RS0030
 builder.Services.AddSharedKernel(builder.Configuration);
 builder.Services.AddSlotBookMessaging(builder.Configuration);
+builder.Services.AddSlotBookJobs(builder.Configuration);
 builder.Services.AddDispatcher();
 builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
     .ConfigureApiBehaviorOptions(options =>
