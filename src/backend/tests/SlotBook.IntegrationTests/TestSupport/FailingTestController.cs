@@ -6,6 +6,8 @@ using SlotBook.SharedKernel.Domain;
 namespace SlotBook.IntegrationTests.TestSupport;
 
 [ApiController]
+[IgnoreAntiforgeryToken]
+[Microsoft.AspNetCore.Authorization.AllowAnonymous]
 [Route("test-only")]
 public class FailingTestController : ControllerBase
 {

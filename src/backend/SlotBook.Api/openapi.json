@@ -4,5 +4,24 @@
     "title": "SlotBook.Api | v1",
     "version": "1.0.0"
   },
-  "paths": { }
+  "paths": {
+    "/api/xsrf-token": {
+      "get": {
+        "tags": [
+          "XsrfToken"
+        ],
+        "summary": "Issues the XSRF token pair as cookies. Angular echoes the readable one in `X-XSRF-TOKEN`.",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "XsrfToken"
+    }
+  ]
 }

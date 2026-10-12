@@ -36,6 +36,7 @@ builder.Services.AddSharedKernel(builder.Configuration);
 builder.Services.AddSlotBookMessaging(builder.Configuration);
 builder.Services.AddSlotBookJobs(builder.Configuration);
 builder.Services.AddDispatcher();
+builder.Services.AddSlotBookAntiforgery();
 builder.Services.AddControllers(options => options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true)
     .ConfigureApiBehaviorOptions(options =>
         options.InvalidModelStateResponseFactory = context => throw ModelBindingErrors.ToException(context.ModelState))
