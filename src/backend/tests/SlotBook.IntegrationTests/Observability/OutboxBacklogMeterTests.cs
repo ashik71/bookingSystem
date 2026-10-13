@@ -1,10 +1,11 @@
 using System.Diagnostics.Metrics;
+using MassTransit.MongoDbIntegration.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Shouldly;
 using SlotBook.IntegrationTests.TestSupport;
-using SlotBook.SharedKernel.Infrastructure.Persistence;
+using SlotBook.SharedKernel.Infrastructure.Messaging;
 using Xunit;
 
 namespace SlotBook.IntegrationTests.Observability;
@@ -15,26 +16,27 @@ public sealed class OutboxBacklogMeterTests(MongoDatabaseFixture mongo) : IClass
     public async Task GaugeReadsThePendingCount()
     {
         var ct = TestContext.Current.CancellationToken;
-        await mongo.Database.GetCollection<BsonDocument>(OutboxBacklogMeter.MessageCollection)
-            .InsertManyAsync([new BsonDocument("n", 1), new BsonDocument("n", 2), new BsonDocument("n", 3)], cancellationToken: ct);
-        var factory = MeterFactory();
-        using var meter = new OutboxBacklogMeter(mongo.Database, factory);
+        await using var host = new SlotBookApiFactory { MongoDatabase = mongo.DatabaseName };
+        var collection = host.Services.GetRequiredService<IMongoCollection<OutboxMessage>>();
 
-        Observe(factory).ShouldBe([3L]);
+        // Insert through the namespace MassTransit registered, as untyped documents: the gauge only counts them.
+        await mongo.Client.GetDatabase(collection.CollectionNamespace.DatabaseNamespace.DatabaseName)
+            .GetCollection<BsonDocument>(collection.CollectionNamespace.CollectionName)
+            .InsertManyAsync([new BsonDocument("n", 1), new BsonDocument("n", 2), new BsonDocument("n", 3)], cancellationToken: ct);
+
+        Observe(host.Services.GetRequiredService<IMeterFactory>()).ShouldBe([3L]);
     }
 
     [Fact]
     public void GaugeRecordsNothingWhenMongoDbIsUnreachable()
     {
         using var client = new MongoClient("mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=300&connectTimeoutMS=300");
-        var factory = MeterFactory();
-        using var meter = new OutboxBacklogMeter(client.GetDatabase("unreachable"), factory);
+        var collection = client.GetDatabase("unreachable").GetCollection<OutboxMessage>("outbox.messages");
+        var factory = new ServiceCollection().AddMetrics().BuildServiceProvider().GetRequiredService<IMeterFactory>();
+        using var meter = new OutboxBacklogMeter(collection, factory);
 
         Should.NotThrow(() => Observe(factory).ShouldBeEmpty());
     }
-
-    private static IMeterFactory MeterFactory() =>
-        new ServiceCollection().AddMetrics().BuildServiceProvider().GetRequiredService<IMeterFactory>();
 
     private static List<long> Observe(IMeterFactory factory)
     {
@@ -43,7 +45,7 @@ public sealed class OutboxBacklogMeterTests(MongoDatabaseFixture mongo) : IClass
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Name == "slotbook.outbox.pending" && ReferenceEquals(instrument.Meter.Scope, factory))
+                if (instrument.Name == OutboxBacklogMeter.GaugeName && ReferenceEquals(instrument.Meter.Scope, factory))
                 {
                     l.EnableMeasurementEvents(instrument);
                 }

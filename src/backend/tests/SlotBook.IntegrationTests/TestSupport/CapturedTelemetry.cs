@@ -16,6 +16,8 @@ namespace SlotBook.IntegrationTests.TestSupport;
 /// </summary>
 public sealed class CapturedTelemetry
 {
+    private static readonly TimeSpan _spanWaitLimit = TimeSpan.FromSeconds(5);
+
     private readonly List<Activity> _spans = [];
     private readonly List<Metric> _metrics = [];
     private readonly ConcurrentQueue<string> _logRecords = new();
@@ -33,6 +35,30 @@ public sealed class CapturedTelemetry
 
     /// <summary>Every log record as text: message, body, attributes and exception.</summary>
     public IReadOnlyCollection<string> LogRecords => _logRecords;
+
+    /// <summary>
+    /// Waits for a span matching <paramref name="match"/>. With <c>TestServer</c> the server span stops after the client
+    /// already has the response, so a test must not read <see cref="Spans"/> straight after the call. Polls every 20 ms
+    /// for up to 5 s and fails with a clear message when nothing matches.
+    /// </summary>
+    public async Task<Activity> WaitForSpanAsync(Func<Activity, bool> match, CancellationToken ct)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(_spanWaitLimit);
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(20));
+        do
+        {
+            var found = Spans.FirstOrDefault(match);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+        while (await WaitAsync(timer, timeout.Token));
+
+        ct.ThrowIfCancellationRequested();
+        throw new TimeoutException($"No exported span matched within {_spanWaitLimit.TotalSeconds:0} s. Exported: {string.Join(", ", Spans.Select(s => s.DisplayName))}.");
+    }
 
     public void Attach(IServiceCollection services)
     {
@@ -71,6 +97,18 @@ public sealed class CapturedTelemetry
                 .Concat(span.Events.SelectMany(e => e.Tags.Select(tag => $"{tag.Key}={tag.Value}").Append(e.Name)))
                 .Append(span.DisplayName))
             .ToList();
+
+    private static async Task<bool> WaitAsync(PeriodicTimer timer, CancellationToken ct)
+    {
+        try
+        {
+            return await timer.WaitForNextTickAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+    }
 
     private sealed class TextLogExporter(ConcurrentQueue<string> sink) : BaseExporter<LogRecord>
     {
