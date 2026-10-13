@@ -40,8 +40,8 @@ session on the two hitl setup tasks.
 
 ## Artifacts produced
 
-- Issues #40, #43, #44 (split children, each with its plan pasted in); #28 and #29 retitled
-- PRs merged: #39, #41, #42, #45, #46, #47
+- Issues #40, #43, #44, #49 (split children, each with its plan pasted in); #28, #29 and #32 retitled
+- PRs merged: #39, #41, #42, #45, #46, #47, #48, #50
 - Pipeline commits on main (admin bypass): `d04eb39` sidecar oplog cap, `b6d9212`
   mongosh `HOME=/tmp` in CI and the sandbox, `434a372` push retry
 - Repo variable `DEMO_API_URL`; secrets `RENDER_DEPLOY_HOOK_API`, `RENDER_DEPLOY_HOOK_WEB`
@@ -56,8 +56,10 @@ session on the two hitl setup tasks.
 | #45 | 8 #29 | 1 | nothing | — |
 | #46 | 8a #43 | 2 | Secure antiforgery cookies with no forwarded-proto handling: 500 on Render | spec gap (AD-22 defers forwarded headers to story 10) + tests only over https |
 | #47 | 8b #44 | 1 | nothing (noted a slow scan host for story 12) | — |
+| #48 | 9 #30 | 1 | nothing | — |
+| #50 | 11a #32 | 1 | nothing | — |
 
-Sandbox spend this session: about $12.65.
+Sandbox spend this session: about $15.85 (stories 9 and 11a: plan + implement each, about $3.20).
 
 ## Rules added to `CLAUDE.md`
 
@@ -81,7 +83,7 @@ its plan pasted in before its first run**; the sandbox reads only that issue.
 
 ## Homework set
 
-- [ ] Optional before story 11: Grafana Synthetics HTTP check on `/health/ready` (Claude guides)
+- [ ] Optional before story 11: Grafana Synthetics HTTP check on `/health` (runbook from story 11b #49) (Claude guides)
 - [ ] Carried: brief entry in `docs/learning/LEARNINGS.md`; `colima stop` after sessions; Node ≥ 24.15
 
 ## Parked for later
@@ -91,7 +93,7 @@ its plan pasted in before its first run**; the sandbox reads only that issue.
 
 ## Next session
 
-1. Story 9 (#30): deploy on merge. Secrets and `DEMO_API_URL` are ready; needs a plan run.
-2. Story 11 (#32): Grafana. OTLP variables are set in Render; needs a plan run.
-3. Story 10 (#31): free-tier proofs, after 9 (hitl: heartbeat on in Render).
-4. Story 12 (#33): refactor sweep, last.
+1. Story 11b (#49): alerts. Plan is on the issue; go straight to `implement`. Then the
+   developer creates the Synthetics check and contact point from the runbook.
+2. Story 10 (#31): free-tier proofs, after 11b (hitl: heartbeat on in Render). Needs a plan run.
+3. Story 12 (#33): refactor sweep, last.

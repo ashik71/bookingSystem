@@ -4,13 +4,13 @@
 > handoff between sessions. Keep it short; detail belongs in session logs and ADRs.
 
 **Last session:** 013 · 2026-10-12
-**Next session:** 014: story 9 #30 (plan) → 11 #32 (plan) → 10 #31 (hitl) → 12 #33; Claude drives the loop and stops at `ai:pr-ready`, developer merges
+**Next session:** 014: story 11b #49 (implement) → 10 #31 (plan, hitl) → 12 #33; Claude drives the loop and stops at `ai:pr-ready`, developer merges
 
 ## Handoff to session 014
 
-**Where we stopped:** epic 1's backend lane is built except deploy, observability and the
-proofs. The demo is live on Render (`slotbook-api-sc87`, `slotbook-web`). **Merge rule:**
-in 013 the developer let Claude approve and merge as them **for that session only**; from
+**Where we stopped:** epic 1 is built except alerts (11b), the proofs (10) and the refactor
+sweep (12). A merge to `main` deploys the demo on Render (`slotbook-api-sc87`,
+`slotbook-web`). **Merge rule:** in 013 the developer let Claude approve and merge as them **for that session only**; from
 014 Claude stops at `ai:pr-ready` again and the developer merges.
 
 | Story | Issue | State |
@@ -19,9 +19,10 @@ in 013 the developer let Claude approve and merge as them **for that session onl
 | 6b inbox + consumer retries | #37 | ✅ merged (PR #39) |
 | 7a lease + job runner · 7b heartbeat + `/internal/jobs` seam | #28 · #40 | ✅ merged (PRs #41, #42) |
 | 8 OpenAPI in CI + security headers · 8a XSRF survives restart · 8b one scheme per endpoint | #29 · #43 · #44 | ✅ merged (PRs #45, #46, #47) |
-| 9 deploy on merge | #30 | ⬜ next; needs a plan run. Secrets `RENDER_DEPLOY_HOOK_API/WEB` and variable `DEMO_API_URL` are set |
-| 11 Grafana Cloud | #32 | ⬜ needs a plan run. OTLP env vars set on `slotbook-api` in Render; Synthetics check not created yet |
-| 10 free-tier proofs | #31 | ⬜ hitl; waits on 9 (and 6b–8b, done); switch the heartbeat on in Render |
+| 9 deploy on merge | #30 | ✅ merged (PR #48); deploy workflow green on `main` |
+| 11a traces, metrics, logs to Grafana | #32 | ✅ merged (PR #50) |
+| 11b alerts: Mongo ops counter, outbox gauge, Grafana runbook | #49 | ⬜ next; plan pasted on the issue → `implement`; hitl: developer creates the Synthetics check and contact point from the runbook |
+| 10 free-tier proofs | #31 | ⬜ needs a plan run; hitl; waits on 11b (the timer proof uses the Synthetics ping); switch the heartbeat on in Render |
 | 12 refactor sweep | #33 | ⬜ last; candidate noted on the issue (slow ArchitectureTests scan host) |
 
 **Check first in 014:** no open PRs, nothing running. Paste each split child's plan into
@@ -131,7 +132,7 @@ Don't let a session assume an answer to any of these.
 | 010 | Custom-domain fallback: own a domain, or accept ~$10/year as an NFR-16 exception? | Closed (011): free only; `wwwroot` fallback |
 | 012 | Before story 9 (#30): add the Render deploy hooks as GitHub secrets (Claude guides) | Done (013) |
 | 012 | Before story 11 (#32): create a Grafana Cloud free account (Claude guides) | Done (013); OTLP vars set in Render |
-| 013 | Optional before story 11: Grafana Synthetics HTTP check on `/health/ready` (Claude guides) | Open |
+| 013 | Optional before story 11: Grafana Synthetics HTTP check on `/health` (runbook from story 11b #49) (Claude guides) | Open |
 
 ---
 
