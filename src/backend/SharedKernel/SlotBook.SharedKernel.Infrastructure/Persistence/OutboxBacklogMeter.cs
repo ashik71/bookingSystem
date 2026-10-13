@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace SlotBook.SharedKernel.Infrastructure.Messaging;
+namespace SlotBook.SharedKernel.Infrastructure.Persistence;
 
 /// <summary>
 /// Gauge <c>slotbook.outbox.pending</c>: bus-outbox messages not yet handed to the broker (MassTransit removes a
