@@ -24,7 +24,7 @@ public class TracingTests(SlotBookApiFactory factory) : IClassFixture<SlotBookAp
         var response = await client.SendAsync(request, Ct);
 
         response.IsSuccessStatusCode.ShouldBeTrue();
-        var span = factory.Telemetry.Spans.Single(s => s.Kind == ActivityKind.Server && s.TraceId.ToHexString() == traceId);
+        var span = await factory.Telemetry.WaitForSpanAsync(s => s.Kind == ActivityKind.Server && s.TraceId.ToHexString() == traceId, Ct);
         span.GetTagItem("http.response.status_code").ShouldBe(204);
         span.GetTagItem("http.route").ShouldNotBeNull();
     }
@@ -39,7 +39,7 @@ public class TracingTests(SlotBookApiFactory factory) : IClassFixture<SlotBookAp
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct));
         var traceId = body.RootElement.GetProperty("traceId").GetString();
         traceId.ShouldNotBeNull();
-        factory.Telemetry.Spans.ShouldContain(s => s.Kind == ActivityKind.Server && s.TraceId.ToHexString() == traceId);
+        await factory.Telemetry.WaitForSpanAsync(s => s.Kind == ActivityKind.Server && s.TraceId.ToHexString() == traceId, Ct);
         factory.Logs.Records.ShouldContain(r => r.EventId == 2 && r.TraceId == traceId);
     }
 
@@ -55,7 +55,8 @@ public class TracingTests(SlotBookApiFactory factory) : IClassFixture<SlotBookAp
         await client.GetAsync(path, Ct);
         await client.GetAsync("/api/xsrf-token", Ct);
 
-        isolated.Telemetry.Spans.ShouldContain(s => s.Kind == ActivityKind.Server);
+        // The health request finished before the xsrf request was sent, so once the later span is exported the earlier one would be too.
+        await isolated.Telemetry.WaitForSpanAsync(s => s.Kind == ActivityKind.Server && s.GetTagItem("url.path") as string == "/api/xsrf-token", Ct);
         isolated.Telemetry.Spans.ShouldNotContain(s => s.Kind == ActivityKind.Server && s.GetTagItem("url.path") as string == path);
     }
 
