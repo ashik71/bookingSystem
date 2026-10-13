@@ -28,7 +28,7 @@ Testing & synthetics → Synthetics → Add check → HTTP.
 | Body regex | `Healthy` (response body matches `"Healthy"`) |
 | Timeout | the maximum the check allows (Render cold starts are slow) |
 
-One probe at 5 minutes is about 8,900 executions a month, inside the free allowance. Adding probes multiplies this.
+One probe at 5 minutes is about 8,600 executions a month, inside the free allowance. Adding probes multiplies this.
 
 ## 2. Contact point and policy
 
